@@ -3,7 +3,7 @@ replicaCount: 2
 image:
   repository: 3829bdb3-inventive-amalthea.registry.twcstorage.ru/query-service
   tag: "0.0.1"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 imagePullSecrets:
   - name: registry-credentials
