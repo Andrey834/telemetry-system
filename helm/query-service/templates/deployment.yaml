@@ -20,6 +20,10 @@ spec:
         prometheus.io/path: "/actuator/prometheus"
         prometheus.io/port: "{{ .Values.service.targetPort }}"
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
         - name: {{ include "query-service.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
