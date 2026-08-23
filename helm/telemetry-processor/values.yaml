@@ -28,20 +28,23 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 
 env:
-  kafkaBootstrapServers: "kafka:9092"
+  kafkaBootstrapServers: "192.168.0.8:9092"
+  kafkaSecurityProtocol: "SASL_PLAINTEXT"
+  kafkaUsername: "telemetry"
   telemetryTopic: "telemetry.raw"
   telemetryConsumerGroup: "telemetry-processor"
-  redisHost: "redis"
+  redisHost: "192.168.0.9"
   redisPort: "6379"
-  dbHost: "postgres"
+  dbHost: "192.168.0.10"
   dbPort: "5432"
   dbName: "telemetry"
   dbUser: "telemetry"
   processorPort: "8081"
 
-# Пароль БД намеренно не в values.yaml/ConfigMap — берётся из Secret отдельным ключом
-# (см. templates/secret.yaml), а не хранится в открытом виде в git.
-dbPassword: "telemetry"
+# DB_PASSWORD/REDIS_PASSWORD/KAFKA_PASSWORD — создаются вручную в кластере, не хранятся в git:
+#   kubectl -n telemetry-system create secret generic telemetry-processor-credentials \
+#     --from-literal=DB_PASSWORD='...' --from-literal=REDIS_PASSWORD='...' --from-literal=KAFKA_PASSWORD='...'
+credentialsSecretName: telemetry-processor-credentials
 
 probes:
   liveness:

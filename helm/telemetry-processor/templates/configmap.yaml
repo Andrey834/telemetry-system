@@ -6,6 +6,8 @@ metadata:
     {{- include "telemetry-processor.labels" . | nindent 4 }}
 data:
   KAFKA_BOOTSTRAP_SERVERS: {{ .Values.env.kafkaBootstrapServers | quote }}
+  KAFKA_SECURITY_PROTOCOL: {{ .Values.env.kafkaSecurityProtocol | quote }}
+  KAFKA_USERNAME: {{ .Values.env.kafkaUsername | quote }}
   TELEMETRY_TOPIC: {{ .Values.env.telemetryTopic | quote }}
   TELEMETRY_CONSUMER_GROUP: {{ .Values.env.telemetryConsumerGroup | quote }}
   REDIS_HOST: {{ .Values.env.redisHost | quote }}

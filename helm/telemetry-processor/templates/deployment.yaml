@@ -34,8 +34,10 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "telemetry-processor.fullname" . }}-config
+            {{- with .Values.credentialsSecretName }}
             - secretRef:
-                name: {{ include "telemetry-processor.fullname" . }}-secret
+                name: {{ . }}
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

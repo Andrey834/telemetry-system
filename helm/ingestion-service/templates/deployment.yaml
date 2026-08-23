@@ -34,6 +34,10 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "ingestion-service.fullname" . }}-config
+            {{- with .Values.credentialsSecretName }}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

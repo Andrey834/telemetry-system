@@ -28,9 +28,16 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 
 env:
-  kafkaBootstrapServers: "kafka:9092"
+  kafkaBootstrapServers: "192.168.0.8:9092"
+  kafkaSecurityProtocol: "SASL_PLAINTEXT"
+  kafkaUsername: "telemetry"
   telemetryTopic: "telemetry.raw"
   ingestionPort: "8080"
+
+# KAFKA_PASSWORD — создаётся вручную в кластере, не хранится в git:
+#   kubectl -n telemetry-system create secret generic ingestion-service-credentials \
+#     --from-literal=KAFKA_PASSWORD='...'
+credentialsSecretName: ingestion-service-credentials
 
 ingress:
   enabled: false          # включите при первом деплое после того, как ingress-nginx и cert-manager подняты

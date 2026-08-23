@@ -28,12 +28,17 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 
 env:
-  redisHost: "redis"
+  redisHost: "192.168.0.9"
   redisPort: "6379"
   queryPort: "8082"
   # Домен дашборда (Angular), которому разрешён CORS-доступ к этому API — замените на реальный
   # после первого деплоя dashboard (см. helm/dashboard/values.yaml ingress.host).
   corsAllowedOrigins: "https://dashboard.telemetry.example.com"
+
+# REDIS_PASSWORD — создаётся вручную в кластере, не хранится в git:
+#   kubectl -n telemetry-system create secret generic query-service-credentials \
+#     --from-literal=REDIS_PASSWORD='...'
+credentialsSecretName: query-service-credentials
 
 ingress:
   enabled: false          # включите при первом деплое после того, как ingress-nginx и cert-manager подняты

@@ -49,3 +49,23 @@ variable "worker_count" {
   type    = number
   default = 3
 }
+
+variable "postgres_disk_mb" {
+  type    = number
+  default = 8192
+}
+
+variable "postgres_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "redis_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "kafka_password" {
+  type      = string
+  sensitive = true
+}

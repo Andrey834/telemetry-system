@@ -18,3 +18,8 @@ worker_cpu   = 2
 worker_count = 3
 
 vpc_subnet_cidr = "192.168.0.0/24"
+
+postgres_disk_mb   = 8192
+postgres_password  = "REPLACE_ME"
+redis_password     = "REPLACE_ME"
+kafka_password     = "REPLACE_ME"

@@ -13,6 +13,7 @@ import reactor.kafka.receiver.ReceiverOptions;
 import ru.telemetry.processor.dto.TelemetryEvent;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,15 +24,23 @@ public class KafkaReceiverConfig {
     public KafkaReceiver<String, TelemetryEvent> telemetryReceiver(
             @Value("${spring.kafka.bootstrap-servers}") String bootstrapServers,
             @Value("${app.telemetry.topic}") String topic,
-            @Value("${app.telemetry.consumer-group}") String groupId) {
+            @Value("${app.telemetry.consumer-group}") String groupId,
+            @Value("${spring.kafka.properties.security.protocol:PLAINTEXT}") String securityProtocol,
+            @Value("${spring.kafka.properties.sasl.username:}") String saslUsername,
+            @Value("${spring.kafka.properties.sasl.password:}") String saslPassword) {
 
-        Map<String, Object> props = Map.of(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
-                ConsumerConfig.GROUP_ID_CONFIG, groupId,
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
-                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false   // коммитим сами, только после успешной записи в Redis+Postgres
-        );
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false); // коммитим сами, только после успешной записи в Redis+Postgres
+        props.put("security.protocol", securityProtocol);
+        if (!saslUsername.isBlank()) {
+            props.put("sasl.mechanism", "PLAIN");
+            props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\""
+                    + saslUsername + "\" password=\"" + saslPassword + "\";");
+        }
 
         // Проект намеренно не тянет spring-kafka (весь Kafka I/O здесь на reactor-kafka ради
         // полностью неблокирующего стека) — поэтому десериализатор написан напрямую на Jackson,
