@@ -21,7 +21,7 @@ if [[ ! -f "$TFVARS" ]]; then
 fi
 
 tfvar() {
-  grep -E "^$1\s*=" "$TFVARS" | sed -E 's/^[^=]+=\s*"([^"]*)".*/\1/'
+  grep -E "^$1[[:space:]]*=" "$TFVARS" | sed -E 's/^[^=]+=[[:space:]]*"([^"]*)".*/\1/'
 }
 
 POSTGRES_PASSWORD="$(tfvar postgres_password)"
