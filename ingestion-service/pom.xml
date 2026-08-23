@@ -36,6 +36,13 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-kafka</artifactId>
         </dependency>
+        <!-- spring-kafka JsonSerializer использует classic com.fasterxml.jackson.databind (2.x),
+             а Boot 4.1.0 по умолчанию тянет только Jackson 3.x (tools.jackson.core) — без этой
+             зависимости JsonSerializer падает с ClassNotFoundException на JavaType в рантайме. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
