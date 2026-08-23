@@ -1,0 +1,23 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.875rem;
+  background: #1f2937;
+  color: #e5e7eb;
+
+  .error {
+    color: #f87171;
+  }
+}
+
+.map {
+  flex: 1;
+}

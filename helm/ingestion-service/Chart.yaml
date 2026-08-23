@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ingestion-service
+description: Приёмный слой телеметрии — WebFlux REST + публикация в Kafka по deviceId
+type: application
+version: 0.1.0
+appVersion: "0.0.1"

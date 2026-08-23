@@ -1,0 +1,14 @@
+# Дашборд едет вместе с приложением, а не разворачивается отдельным ручным шагом.
+# Sidecar Grafana (часть kube-prometheus-stack) следит за ConfigMap с лейблом
+# grafana_dashboard: "1" по всем namespace (searchNamespace: ALL в values платформы)
+# и сам подхватывает содержимое data — без perl-скриптов и без "зайти в UI и импортировать".
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ingestion-service.fullname" . }}-dashboard
+  labels:
+    {{- include "ingestion-service.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  ingestion-service.json: |
+{{ .Files.Get "dashboards/ingestion-service-dashboard.json" | indent 4 }}

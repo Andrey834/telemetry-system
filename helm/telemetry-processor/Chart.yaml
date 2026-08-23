@@ -1,0 +1,6 @@
+apiVersion: v2
+name: telemetry-processor
+description: Consumer group телеметрии — читает Kafka, пишет текущее состояние в Redis и историю в PostgreSQL
+type: application
+version: 0.1.0
+appVersion: "0.0.1"

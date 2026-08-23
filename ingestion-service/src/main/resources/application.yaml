@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: ${INGESTION_NAME:ingestion-service}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all              # ждём подтверждения от всех реплик — телеметрия не должна теряться на публикации
+      properties:
+        spring.json.add.type.headers: false   # в payload не нужен Java class name, только чистый JSON
+
+server:
+  port: ${INGESTION_PORT:8080}
+
+app:
+  telemetry:
+    topic: ${TELEMETRY_TOPIC:telemetry.raw}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}   # чтобы в Prometheus/Grafana можно было фильтровать по сервису
+
+logging:
+  level:
+    root: info

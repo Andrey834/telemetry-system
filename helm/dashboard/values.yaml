@@ -1,0 +1,47 @@
+replicaCount: 2
+
+image:
+  repository: telemetry/dashboard
+  tag: "0.0.1"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+env:
+  # Публичный (доступный из браузера пользователя) адрес query-service — записывается
+  # в window.__env при старте контейнера (docker-entrypoint.sh + envsubst), а не при сборке.
+  queryServiceUrl: "https://query.telemetry.example.com"
+
+ingress:
+  enabled: false          # включите при первом деплое после того, как ingress-nginx и cert-manager подняты
+  className: nginx
+  host: dashboard.telemetry.example.com   # замените на реальный домен, указывающий на IP ingress-nginx LoadBalancer
+  clusterIssuer: letsencrypt-staging      # переключите на letsencrypt-prod после проверки на staging
+  tlsSecretName: dashboard-tls
+
+probes:
+  liveness:
+    path: /
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  readiness:
+    path: /
+    initialDelaySeconds: 5
+    periodSeconds: 5

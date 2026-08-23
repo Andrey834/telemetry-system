@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "telemetry-processor.fullname" . }}-config
+  labels:
+    {{- include "telemetry-processor.labels" . | nindent 4 }}
+data:
+  KAFKA_BOOTSTRAP_SERVERS: {{ .Values.env.kafkaBootstrapServers | quote }}
+  TELEMETRY_TOPIC: {{ .Values.env.telemetryTopic | quote }}
+  TELEMETRY_CONSUMER_GROUP: {{ .Values.env.telemetryConsumerGroup | quote }}
+  REDIS_HOST: {{ .Values.env.redisHost | quote }}
+  REDIS_PORT: {{ .Values.env.redisPort | quote }}
+  DB_HOST: {{ .Values.env.dbHost | quote }}
+  DB_PORT: {{ .Values.env.dbPort | quote }}
+  DB_NAME: {{ .Values.env.dbName | quote }}
+  DB_USER: {{ .Values.env.dbUser | quote }}
+  PROCESSOR_PORT: {{ .Values.env.processorPort | quote }}

@@ -1,0 +1,20 @@
+# Скопируйте в terraform.tfvars, при необходимости поменяйте значения.
+# terraform.tfvars НЕ коммитить.
+
+# Токен НЕ указывается здесь — экспортируйте перед запуском:
+#   export TWC_TOKEN=<токен с https://timeweb.cloud/my/api-keys>
+# Важно: у токена должно быть отключено подтверждение удаления серверов через Telegram,
+# иначе terraform destroy не сможет ничего удалить (ждёт ручного подтверждения в Telegram).
+
+cluster_name = "telemetry-system"
+location     = "ru-1" # ru-1 — SPB, ru-3 — MSK, nl-1 — AMS
+
+k8s_version       = "v1.34.10+k0s.0" # актуальный список: https://api.timeweb.cloud/api/v1/k8s/k8s_versions (нужен заголовок Authorization: Bearer $TWC_TOKEN)
+network_driver    = "flannel"
+high_availability = false
+
+master_cpu   = 2
+worker_cpu   = 2
+worker_count = 3
+
+vpc_subnet_cidr = "192.168.0.0/24"

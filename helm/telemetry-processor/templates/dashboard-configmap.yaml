@@ -1,0 +1,12 @@
+# Тот же принцип, что и у ingestion-service: дашборд лежит рядом с чартом и подхватывается
+# Grafana sidecar по лейблу grafana_dashboard: "1", без ручного импорта.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "telemetry-processor.fullname" . }}-dashboard
+  labels:
+    {{- include "telemetry-processor.labels" . | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  telemetry-processor.json: |
+{{ .Files.Get "dashboards/telemetry-processor-dashboard.json" | indent 4 }}

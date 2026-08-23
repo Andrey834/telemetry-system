@@ -1,0 +1,36 @@
+# Применяется вручную один раз после того, как cert-manager поднят (Terraform → модуль platform):
+#   kubectl apply -f cert-manager/cluster-issuer.yaml
+#
+# Не templating через Terraform намеренно: cert-manager должен уже существовать в кластере
+# (его CRD ClusterIssuer), а связывать это через terraform apply в один проход — источник
+# гонки "ресурс ещё не создан" в Terraform. Поэтому — отдельный шаг руками/в CI после платформы.
+
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging   # сначала staging — у прод Let's Encrypt жёсткий rate limit,
+spec:                          # тестируйте выпуск на staging, прежде чем переключаться на prod
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: REPLACE_ME@example.com   # замените на реальный email — сюда придут уведомления об истечении
+    privateKeySecretRef:
+      name: letsencrypt-staging-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: REPLACE_ME@example.com
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx

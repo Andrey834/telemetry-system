@@ -1,0 +1,22 @@
+# Скопируйте в terraform.tfvars и заполните реальными значениями.
+# terraform.tfvars НЕ коммитить — уже добавлен в .gitignore.
+# cluster_name/yc_cloud_id/yc_folder_id/default_zone должны совпадать со значениями,
+# которые вы применили в ../infra — этот конфиг ищет уже существующий кластер по имени.
+
+yc_cloud_id  = "b1gXXXXXXXXXXXXXXXXX"
+yc_folder_id = "b1gYYYYYYYYYYYYYYYYY"
+
+# export TF_VAR_yc_token=$(yc iam create-token)
+# yc_token не задаём здесь намеренно.
+
+default_zone = "ru-central1-a"
+cluster_name = "telemetry-system"
+
+grafana_admin_password = "REPLACE_ME"
+
+# Создать вручную заранее (Terraform-ресурса для workspace нет):
+#   yc monitoring prometheus workspace create --name telemetry-system --folder-id <yc_folder_id>
+prometheus_workspace_id = "monXXXXXXXXXXXXXXXXX"
+
+# Без реального домена Let's Encrypt не выпустит сертификат — включить (true), когда домен появится.
+enable_cert_manager = false

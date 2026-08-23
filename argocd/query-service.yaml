@@ -1,0 +1,28 @@
+# Применяется вручную один раз после того, как ArgoCD поднят (Terraform → модуль platform):
+#   kubectl apply -f argocd/query-service.yaml
+#
+# Дальше ArgoCD сам следит за git-репозиторием: любой коммит в helm/query-service
+# автоматически синхронизируется в кластер — тот же GitOps-поток, что и у остальных сервисов.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: query-service
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Andrey834/telemetry-system.git   # заменить на реальный URL после первого push
+    targetRevision: main
+    path: helm/query-service
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: telemetry-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

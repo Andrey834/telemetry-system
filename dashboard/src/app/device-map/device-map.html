@@ -1,0 +1,11 @@
+<div class="toolbar">
+  <span class="count">Устройств на карте: {{ deviceCount() }}</span>
+  @if (lastUpdated()) {
+    <span class="updated">Обновлено: {{ lastUpdated()!.toLocaleTimeString() }}</span>
+  }
+  @if (error()) {
+    <span class="error">{{ error() }}</span>
+  }
+</div>
+
+<div #mapContainer class="map"></div>

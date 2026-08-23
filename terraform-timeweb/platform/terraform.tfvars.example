@@ -1,0 +1,12 @@
+# Скопируйте в terraform.tfvars.
+# cluster_id — из вывода стадии infra:
+#   cd ../infra && terraform output -raw cluster_id
+
+cluster_id = 123456
+
+enable_cert_manager = true
+argocd_version      = "8.0.0"
+
+# Опционально — задать свой пароль admin вместо авто-сгенерированного:
+#   htpasswd -nbBC 10 "" 'ваш-пароль' | tr -d ':\n' | sed 's/$2y/$2a/'
+# argocd_admin_password_bcrypt_hash = "$2a$10$..."

@@ -1,0 +1,16 @@
+# Скопируйте в terraform.tfvars и заполните реальными значениями.
+# terraform.tfvars НЕ коммитить — уже добавлен в .gitignore.
+
+yc_cloud_id  = "b1gXXXXXXXXXXXXXXXXX"
+yc_folder_id = "b1gYYYYYYYYYYYYYYYYY"
+
+# Токен лучше не хранить в файле вообще — экспортируйте перед запуском:
+#   export TF_VAR_yc_token=$(yc iam create-token)
+# yc_token не задаём здесь намеренно.
+
+default_zone = "ru-central1-a"
+cluster_name = "telemetry-system"
+node_count   = 3
+node_cores   = 2
+node_memory  = 4
+preemptible  = true # дешевле для теста/демо; для прод-нагрузки — false

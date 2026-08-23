@@ -1,0 +1,47 @@
+replicaCount: 2
+
+image:
+  repository: telemetry/ingestion-service
+  tag: "0.0.1"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+
+env:
+  kafkaBootstrapServers: "kafka:9092"
+  telemetryTopic: "telemetry.raw"
+  ingestionPort: "8080"
+
+ingress:
+  enabled: false          # включите при первом деплое после того, как ingress-nginx и cert-manager подняты
+  className: nginx
+  host: ingestion.telemetry.example.com   # замените на реальный домен, указывающий на IP ingress-nginx LoadBalancer
+  clusterIssuer: letsencrypt-staging      # переключите на letsencrypt-prod после проверки на staging
+  tlsSecretName: ingestion-service-tls
+
+probes:
+  liveness:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 15
+    periodSeconds: 10
+  readiness:
+    path: /actuator/health/readiness
+    initialDelaySeconds: 10
+    periodSeconds: 5

@@ -1,0 +1,150 @@
+x-kafka-common: &kafka-common
+  image: apache/kafka:3.9.0
+  environment: &kafka-common-env
+    KAFKA_PROCESS_ROLES: broker,controller
+    KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+    KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+    # 3 голоса в кворуме — кластер продолжает работать и принимать решения при падении одной ноды (2 из 3 = большинство)
+    KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+    # реплика-фактор 3 — каждая партиция хранится на всех трёх брокерах, переживает падение одного без потери данных
+    KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+    KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+    KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+    KAFKA_MIN_INSYNC_REPLICAS: 2
+    CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk   # общий для всех нод — без этого кластер не сформируется
+  networks:
+    - telemetry
+
+services:
+  kafka-1:
+    <<: *kafka-common
+    container_name: telemetry-kafka-1
+    ports:
+      - "9092:9092"
+    environment:
+      <<: *kafka-common-env
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092
+
+  kafka-2:
+    <<: *kafka-common
+    container_name: telemetry-kafka-2
+    ports:
+      - "9094:9092"
+    environment:
+      <<: *kafka-common-env
+      KAFKA_NODE_ID: 2
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092
+
+  kafka-3:
+    <<: *kafka-common
+    container_name: telemetry-kafka-3
+    ports:
+      - "9096:9092"
+    environment:
+      <<: *kafka-common-env
+      KAFKA_NODE_ID: 3
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: telemetry-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - telemetry
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: telemetry-postgres
+    environment:
+      POSTGRES_DB: telemetry
+      POSTGRES_USER: telemetry
+      POSTGRES_PASSWORD: telemetry
+    ports:
+      - "5432:5432"
+    volumes:
+      - telemetry-pg-data:/var/lib/postgresql/data
+    networks:
+      - telemetry
+
+  ingestion-service:
+    build: ./ingestion-service
+    container_name: ingestion-service
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+    environment:
+      # перечислены все три брокера — клиент Kafka сам обнаружит остальных через любой живой
+      KAFKA_BOOTSTRAP_SERVERS: kafka-1:9092,kafka-2:9092,kafka-3:9092
+      INGESTION_PORT: 8080
+      TELEMETRY_TOPIC: telemetry.raw
+    ports:
+      - "8080:8080"
+    networks:
+      - telemetry
+
+  telemetry-processor:
+    build: ./telemetry-processor
+    container_name: telemetry-processor
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+      - redis
+      - postgres
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka-1:9092,kafka-2:9092,kafka-3:9092
+      TELEMETRY_TOPIC: telemetry.raw
+      TELEMETRY_CONSUMER_GROUP: telemetry-processor
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: telemetry
+      DB_USER: telemetry
+      DB_PASSWORD: telemetry
+      PROCESSOR_PORT: 8081
+    ports:
+      - "8081:8081"
+    networks:
+      - telemetry
+
+  query-service:
+    build: ./query-service
+    container_name: query-service
+    depends_on:
+      - redis
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      QUERY_PORT: 8082
+    ports:
+      - "8082:8082"
+    networks:
+      - telemetry
+
+  dashboard:
+    build: ./dashboard
+    container_name: dashboard
+    depends_on:
+      - query-service
+    environment:
+      # Выполняется в браузере пользователя, а не внутри docker-сети — поэтому localhost,
+      # а не query-service:8082 (внутреннее DNS-имя браузеру недоступно).
+      QUERY_SERVICE_URL: http://localhost:8082
+    ports:
+      - "4200:80"
+    networks:
+      - telemetry
+
+networks:
+  telemetry:
+    driver: bridge
+
+volumes:
+  telemetry-pg-data:

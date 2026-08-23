@@ -1,0 +1,20 @@
+target/
+*.class
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.log
+
+# Terraform
+terraform/**/.terraform/
+terraform/**/terraform.tfstate
+terraform/**/terraform.tfstate.backup
+terraform/**/terraform.tfvars
+terraform/**/*.tfplan
+terraform-timeweb/**/.terraform/
+terraform-timeweb/**/terraform.tfstate
+terraform-timeweb/**/terraform.tfstate.backup
+terraform-timeweb/**/terraform.tfvars
+terraform-timeweb/**/*.tfplan
+terraform-timeweb/kubeconfig.yaml
