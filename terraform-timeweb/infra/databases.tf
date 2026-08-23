@@ -72,6 +72,14 @@ resource "twc_database_cluster" "kafka" {
   }
 }
 
+# У Timeweb топик Kafka — это "instance" внутри database cluster (тот же ресурс, что и база
+# данных для Postgres/MySQL). Автоматически создаётся только default_topic — свой топик нужно
+# завести явно, иначе приложение подписывается на несуществующий topic.
+resource "twc_database_instance" "kafka_telemetry_raw" {
+  cluster_id = twc_database_cluster.kafka.id
+  name       = "telemetry.raw"
+}
+
 resource "twc_database_user" "kafka" {
   cluster_id = twc_database_cluster.kafka.id
   login      = "telemetry"
