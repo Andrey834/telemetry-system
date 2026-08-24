@@ -76,43 +76,69 @@ resource "helm_release" "cert_manager" {
   }
 }
 
-# Продукт маркетплейса "Prometheus Operator с поддержкой Yandex Monitoring" — его образы уже
-# смотрят на cr.yandex, а не на недоступный с нод quay.io. user_values — плоские dot-notation
-# ключи (как helm --set), не вложенный YAML.
-resource "yandex_kubernetes_marketplace_helm_release" "kube_prometheus_stack" {
-  cluster_id = var.cluster_id
+# Тот же продукт маркетплейса "Prometheus Operator с поддержкой Yandex Monitoring" (тот же чарт,
+# те же образы на cr.yandex), но ставим напрямую по OCI, а не через
+# yandex_kubernetes_marketplace_helm_release — у маркетплейс-ресурса user_values ограничен
+# узкой курируемой схемой (только prometheusWorkspaceId/iam_api_key_value_generated), которая
+# отклоняет grafana.adminPassword/sidecar.* с ошибкой "value ... not found", хотя эти ключи
+# реально есть в values.yaml чарта (проверено — скачали чарт напрямую из cr.yandex). Обычный
+# helm_release такого ограничения не имеет.
+resource "helm_release" "kube_prometheus_stack" {
+  name       = "kube-prometheus-stack"
+  repository = "oci://cr.yandex/yc-marketplace/yandex-cloud/prometheus/charts"
+  chart      = "kube-prometheus-stack"
+  version    = "86.2.3-1"
+  namespace  = kubernetes_namespace.monitoring.metadata[0].name
 
-  product_version = "f2e4808kdtr6v9l5fmvs" # Prometheus Operator с поддержкой Yandex Monitoring, версия чарта 86.2.3-1
-
-  name      = "kube-prometheus-stack"
-  namespace = kubernetes_namespace.monitoring.metadata[0].name
-
-  user_values = {
-    "prometheusWorkspaceId"                                             = var.prometheus_workspace_id
-    "iam_api_key_value_generated.secretAccessKey"                       = yandex_iam_service_account_api_key.prometheus_remote_write_key.secret_key
-    "grafana.adminPassword"                                             = var.grafana_admin_password
-    "grafana.service.type" = "ClusterIP" # наружу — через Ingress/port-forward, не публичный LoadBalancer напрямую
-    # Весь блок grafana.sidecar.dashboards.* убран — текущая версия marketplace-продукта не
-    # принимает эти ключи ("value ... not found" на каждом по очереди), схема changed с момента
-    # настройки. Автоподхват дашбордов из ConfigMap по лейблу grafana_dashboard сейчас не
-    # настроен — нужно сверить актуальную схему values чарта отдельно, прежде чем включать обратно.
-    "prometheus.prometheusSpec.retention"                               = "15d"
-    "prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues" = "false" # подхватывать ServiceMonitor из любого namespace, не только своего релиза
-  }
+  values = [
+    yamlencode({
+      prometheusWorkspaceId = var.prometheus_workspace_id
+      iam_api_key_value_generated = {
+        secretAccessKey = yandex_iam_service_account_api_key.prometheus_remote_write_key.secret_key
+      }
+      grafana = {
+        adminPassword = var.grafana_admin_password
+        service = {
+          type = "ClusterIP" # наружу — через Ingress/port-forward, не публичный LoadBalancer напрямую
+        }
+        sidecar = {
+          dashboards = {
+            enabled         = true
+            label           = "grafana_dashboard"
+            labelValue      = "1"
+            searchNamespace = "ALL" # дашборд едет в неймспейсе приложения, не monitoring — без ALL sidecar видел бы ConfigMap только в своём namespace
+          }
+        }
+      }
+      prometheus = {
+        prometheusSpec = {
+          retention                               = "15d"
+          serviceMonitorSelectorNilUsesHelmValues = false # подхватывать ServiceMonitor из любого namespace, не только своего релиза
+        }
+      }
+    })
+  ]
 }
 
-# Продукт маркетплейса "Argo CD" — версия чарта отстаёт от апстрима argoproj/argo-helm, но образ
-# смотрит на cr.yandex, а не на недоступный quay.io.
-resource "yandex_kubernetes_marketplace_helm_release" "argocd" {
-  cluster_id = var.cluster_id
+# Тот же продукт маркетплейса "Argo CD" (тот же чарт, образ уже смотрит на cr.yandex), но ставим
+# напрямую по OCI, а не через yandex_kubernetes_marketplace_helm_release — та же причина, что и
+# для kube-prometheus-stack: курируемая схема user_values отклоняла configs.params.server.insecure.
+# "server.insecure" — буквальный ключ с точкой внутри configs.params (не вложенность), проверено
+# по values.yaml чарта напрямую.
+resource "helm_release" "argocd" {
+  name       = "argocd"
+  repository = "oci://cr.yandex/yc-marketplace/yandex-cloud/argo/chart"
+  chart      = "argo-cd"
+  version    = "7.3.11-2"
+  namespace  = kubernetes_namespace.argocd.metadata[0].name
 
-  product_version = "f2et3m5qhh5av80s6qbl" # Argo CD, версия чарта 7.3.11-2
-
-  name      = "argocd"
-  namespace = kubernetes_namespace.argocd.metadata[0].name
-
-  # user_values пуст: configs.params.server.insecure текущая версия marketplace-продукта не
-  # принимает ("value ... not found") — схема изменилась с момента настройки. ArgoCD ставится
-  # с дефолтами продукта; доступ через port-forward будет по https, не http.
-  user_values = {}
+  values = [
+    yamlencode({
+      configs = {
+        params = {
+          "server.insecure" = true # TLS терминируется на Ingress/LoadBalancer перед ArgoCD — для демо-стенда достаточно
+        }
+      }
+    })
+  ]
 }
