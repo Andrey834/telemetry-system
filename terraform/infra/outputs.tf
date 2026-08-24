@@ -42,6 +42,21 @@ output "redis_port" {
 }
 
 output "kafka_bootstrap_servers" {
-  description = "Стандартный bootstrap-адрес Yandex Managed Kafka — SASL_SSL, порт 9091"
-  value       = "bootstrap.${yandex_mdb_kafka_cluster.this.id}.mdb.yandexcloud.net:9091"
+  # host[].name — FQDN брокера. SASL_SSL, порт 9091.
+  value = "${tolist(yandex_mdb_kafka_cluster.this.host)[0].name}:9091"
+}
+
+output "postgres_password" {
+  value     = var.postgres_password
+  sensitive = true
+}
+
+output "redis_password" {
+  value     = var.redis_password
+  sensitive = true
+}
+
+output "kafka_password" {
+  value     = var.kafka_password
+  sensitive = true
 }
