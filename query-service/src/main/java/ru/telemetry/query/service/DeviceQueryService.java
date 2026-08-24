@@ -32,6 +32,11 @@ public class DeviceQueryService {
     }
 
     public Flux<TelemetryState> findByDeviceIds(List<String> deviceIds) {
+        if (deviceIds.isEmpty()) {
+            // Redis MGET не допускает пустой список ключей (Lettuce кидает IllegalArgumentException) —
+            // findAll() на пустом telemetry:devices попадает сюда до появления первой телеметрии.
+            return Flux.empty();
+        }
         List<String> keys = deviceIds.stream().map(id -> KEY_PREFIX + id).toList();
         return redisTemplate.opsForValue().multiGet(keys)
                 // Redis MGET кладёт null на месте отсутствующих ключей — Flux.fromIterable не
