@@ -34,11 +34,11 @@ output "postgres_port" {
 }
 
 output "redis_host" {
-  value = yandex_mdb_redis_cluster.this.host[0].fqdn
+  value = yandex_mdb_redis_cluster_v2.this.hosts["main"].fqdn
 }
 
 output "redis_port" {
-  value = 6380 # порт Yandex Managed Redis (TLS) всегда 6380
+  value = 6379 # фиксированный порт, не настраивается (tls_enabled не включаем)
 }
 
 output "kafka_bootstrap_servers" {

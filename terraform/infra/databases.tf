@@ -37,27 +37,34 @@ resource "yandex_mdb_postgresql_database" "telemetry" {
   owner      = yandex_mdb_postgresql_user.telemetry.name
 }
 
-resource "yandex_mdb_redis_cluster" "this" {
+# Yandex Cloud больше не создаёт новые кластеры "Managed Redis" как отдельный сервис — консоль
+# показывает только "Managed Service for Valkey" (форк Redis). Terraform-ресурс называется
+# yandex_mdb_redis_cluster_v2 (для обратной совместимости имени), но subcategory в его же
+# документации — "Managed Service for ValKey"; версия указывается с суффиксом "-valkey".
+# Порт фиксирован — 6379, TLS не включаем (tls_enabled по умолчанию false, как и у Timeweb).
+resource "yandex_mdb_redis_cluster_v2" "this" {
   name        = "${var.cluster_name}-redis"
   environment = "PRODUCTION"
   network_id  = module.network.network_id
 
-  config {
+  config = {
     password = var.redis_password
-    version  = "7.2"
+    version  = "7.2-valkey"
   }
 
-  resources {
+  resources = {
     resource_preset_id = "hm1.nano"
     disk_size          = 16
   }
 
-  host {
-    zone      = var.default_zone
-    subnet_id = module.network.subnet_id
+  hosts = {
+    "main" = {
+      zone      = var.default_zone
+      subnet_id = module.network.subnet_id
+    }
   }
 
-  maintenance_window {
+  maintenance_window = {
     type = "ANYTIME"
   }
 }
@@ -69,7 +76,7 @@ resource "yandex_mdb_kafka_cluster" "this" {
   subnet_ids  = [module.network.subnet_id]
 
   config {
-    version          = "3.5" # если версия недоступна, API подскажет актуальный список — сверим по факту
+    version          = "4.2" # актуальная (проверено через ошибку API — 3.5 недоступна)
     brokers_count    = 1
     zones            = [var.default_zone]
     assign_public_ip = false
