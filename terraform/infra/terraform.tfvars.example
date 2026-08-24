@@ -14,3 +14,7 @@ node_count   = 3
 node_cores   = 2
 node_memory  = 4
 preemptible  = true # дешевле для теста/демо; для прод-нагрузки — false
+
+postgres_password = "REPLACE_ME"
+redis_password    = "REPLACE_ME"
+kafka_password    = "REPLACE_ME"

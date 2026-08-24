@@ -1,0 +1,107 @@
+# Managed Postgres/Redis/Kafka — в той же сети и подсети, что и Kubernetes-кластер, приватные
+# (без публичного IP), приложения обращаются к ним по внутренней сети.
+
+resource "yandex_mdb_postgresql_cluster" "this" {
+  name        = "${var.cluster_name}-postgres"
+  environment = "PRODUCTION"
+  network_id  = module.network.network_id
+
+  config {
+    version = 16
+    resources {
+      resource_preset_id = "s2.micro"
+      disk_type_id       = "network-ssd"
+      disk_size          = 16
+    }
+  }
+
+  maintenance_window {
+    type = "ANYTIME"
+  }
+
+  host {
+    zone      = var.default_zone
+    subnet_id = module.network.subnet_id
+  }
+}
+
+resource "yandex_mdb_postgresql_user" "telemetry" {
+  cluster_id = yandex_mdb_postgresql_cluster.this.id
+  name       = "telemetry"
+  password   = var.postgres_password
+}
+
+resource "yandex_mdb_postgresql_database" "telemetry" {
+  cluster_id = yandex_mdb_postgresql_cluster.this.id
+  name       = "telemetry"
+  owner      = yandex_mdb_postgresql_user.telemetry.name
+}
+
+resource "yandex_mdb_redis_cluster" "this" {
+  name        = "${var.cluster_name}-redis"
+  environment = "PRODUCTION"
+  network_id  = module.network.network_id
+
+  config {
+    password = var.redis_password
+    version  = "7.2"
+  }
+
+  resources {
+    resource_preset_id = "hm1.nano"
+    disk_size          = 16
+  }
+
+  host {
+    zone      = var.default_zone
+    subnet_id = module.network.subnet_id
+  }
+
+  maintenance_window {
+    type = "ANYTIME"
+  }
+}
+
+resource "yandex_mdb_kafka_cluster" "this" {
+  name        = "${var.cluster_name}-kafka"
+  environment = "PRODUCTION"
+  network_id  = module.network.network_id
+  subnet_ids  = [module.network.subnet_id]
+
+  config {
+    version          = "3.5" # если версия недоступна, API подскажет актуальный список — сверим по факту
+    brokers_count    = 1
+    zones            = [var.default_zone]
+    assign_public_ip = false
+
+    kafka {
+      resources {
+        resource_preset_id = "s2.micro"
+        disk_type_id       = "network-ssd"
+        disk_size          = 32
+      }
+    }
+  }
+
+  user {
+    name     = "telemetry"
+    password = var.kafka_password
+
+    permission {
+      topic_name = "telemetry.raw"
+      role       = "ACCESS_ROLE_PRODUCER"
+    }
+
+    permission {
+      topic_name = "telemetry.raw"
+      role       = "ACCESS_ROLE_CONSUMER"
+    }
+  }
+}
+
+resource "yandex_mdb_kafka_topic" "telemetry_raw" {
+  cluster_id         = yandex_mdb_kafka_cluster.this.id
+  name               = "telemetry.raw"
+  partitions         = 4
+  replication_factor = 1
+}

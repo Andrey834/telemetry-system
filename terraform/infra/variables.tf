@@ -45,3 +45,18 @@ variable "preemptible" {
   type        = bool
   default     = false
 }
+
+variable "postgres_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "redis_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "kafka_password" {
+  type      = string
+  sensitive = true
+}
