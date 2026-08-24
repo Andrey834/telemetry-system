@@ -190,5 +190,5 @@ resource "kubectl_manifest" "argocd_app" {
     }
   })
 
-  depends_on = [module.platform, kubernetes_secret.app_credentials]
+  depends_on = [module.platform, kubernetes_secret.app_credentials, null_resource.dns_record]
 }

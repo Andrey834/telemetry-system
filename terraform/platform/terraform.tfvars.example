@@ -28,3 +28,13 @@ dashboard_basic_auth_password = "REPLACE_ME"
 dashboard_host         = "dashboard.example.com"
 query_service_host     = "query.example.com"
 ingestion_service_host = "ingest.example.com"
+
+# Автоматическое обновление A-записей через REG.API v2 (api.reg.ru). Нужно один раз вручную:
+# 1) сгенерировать RSA-ключ + самоподписанный сертификат (openssl req -x509 -new ...),
+# 2) загрузить публичный .crt в личном кабинете reg.ru (Настройки безопасности → SSL для API),
+# 3) добавить свой текущий IP в white list API там же.
+dns_zone        = "example.com"
+regru_username  = "REPLACE_ME@example.com"
+regru_password  = "REPLACE_ME"
+regru_cert_path = "/absolute/path/to/regru-api.crt"
+regru_key_path  = "/absolute/path/to/regru-api.key"
