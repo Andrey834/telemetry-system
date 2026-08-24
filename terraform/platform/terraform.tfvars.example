@@ -24,3 +24,7 @@ letsencrypt_email   = "REPLACE_ME@example.com"
 
 dashboard_basic_auth_user     = "admin"
 dashboard_basic_auth_password = "REPLACE_ME"
+
+dashboard_host         = "dashboard.example.com"
+query_service_host     = "query.example.com"
+ingestion_service_host = "ingest.example.com"

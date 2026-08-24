@@ -59,3 +59,21 @@ variable "dashboard_basic_auth_password" {
   sensitive   = true
   default     = null
 }
+
+variable "dashboard_host" {
+  description = "Домен dashboard (Angular UI) — задаётся в terraform.tfvars, не коммитится"
+  type        = string
+  default     = null
+}
+
+variable "query_service_host" {
+  description = "Домен query-service (публичный API) — задаётся в terraform.tfvars, не коммитится"
+  type        = string
+  default     = null
+}
+
+variable "ingestion_service_host" {
+  description = "Домен ingestion-service (публичный приём телеметрии) — задаётся в terraform.tfvars, не коммитится"
+  type        = string
+  default     = null
+}

@@ -20,9 +20,10 @@ locals {
   postgres_host   = data.terraform_remote_state.infra.outputs.postgres_host
   redis_host      = data.terraform_remote_state.infra.outputs.redis_host
 
-  dashboard_host     = "telemetry.srvmls.ru"
-  query_service_host = "query.telemetry.srvmls.ru"
-  cluster_issuer     = "letsencrypt-prod"
+  dashboard_host         = var.dashboard_host
+  query_service_host     = var.query_service_host
+  ingestion_service_host = var.ingestion_service_host
+  cluster_issuer         = "letsencrypt-prod"
 
   # Ноды Yandex Managed Kubernetes аутентифицируются в cr.yandex через собственный сервисный
   # аккаунт (роль container-registry.images.puller) — imagePullSecrets не нужен.
@@ -35,7 +36,13 @@ locals {
         kafkaUsername         = "telemetry"
       }
       credentialsSecretName = "ingestion-service-credentials"
-      ingress               = null
+      ingress = var.enable_cert_manager ? {
+        enabled       = true
+        className     = "nginx"
+        host          = local.ingestion_service_host
+        clusterIssuer = local.cluster_issuer
+        tlsSecretName = "ingestion-service-tls"
+      } : null
     }
     telemetry-processor = {
       image = "cr.yandex/${local.registry_id}/telemetry-processor"
