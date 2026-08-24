@@ -91,14 +91,11 @@ resource "yandex_kubernetes_marketplace_helm_release" "kube_prometheus_stack" {
     "prometheusWorkspaceId"                                             = var.prometheus_workspace_id
     "iam_api_key_value_generated.secretAccessKey"                       = yandex_iam_service_account_api_key.prometheus_remote_write_key.secret_key
     "grafana.adminPassword"                                             = var.grafana_admin_password
-    "grafana.service.type"                                              = "ClusterIP" # наружу — через Ingress/port-forward, не публичный LoadBalancer напрямую
-    "grafana.sidecar.dashboards.enabled"                                = "true"
-    "grafana.sidecar.dashboards.label"                                  = "grafana_dashboard"
-    # grafana.sidecar.dashboards.labelValue убран — текущая версия marketplace-продукта не
-    # принимает этот ключ ("value ... not found" при apply), схема user_values изменилась
-    # с момента, когда мы это настраивали. Sidecar будет подхватывать ConfigMap по одному
-    # наличию лейбла grafana_dashboard, без проверки конкретного значения.
-    "grafana.sidecar.dashboards.searchNamespace" = "ALL" # дашборд едет в неймспейсе приложения, не monitoring — без ALL sidecar видел бы ConfigMap только в своём namespace
+    "grafana.service.type" = "ClusterIP" # наружу — через Ingress/port-forward, не публичный LoadBalancer напрямую
+    # Весь блок grafana.sidecar.dashboards.* убран — текущая версия marketplace-продукта не
+    # принимает эти ключи ("value ... not found" на каждом по очереди), схема changed с момента
+    # настройки. Автоподхват дашбордов из ConfigMap по лейблу grafana_dashboard сейчас не
+    # настроен — нужно сверить актуальную схему values чарта отдельно, прежде чем включать обратно.
     "prometheus.prometheusSpec.retention"                               = "15d"
     "prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues" = "false" # подхватывать ServiceMonitor из любого namespace, не только своего релиза
   }
