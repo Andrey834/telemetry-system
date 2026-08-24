@@ -8,4 +8,23 @@
   }
 </div>
 
-<div #mapContainer class="map"></div>
+<div class="layout">
+  <aside class="device-list">
+    @if (devices().length === 0) {
+      <div class="empty">Нет устройств</div>
+    }
+    @for (device of devices(); track device.deviceId) {
+      <button
+        type="button"
+        class="device-item"
+        [class.selected]="selectedDeviceId() === device.deviceId"
+        (click)="selectDevice(device.deviceId)"
+      >
+        <span class="device-id">{{ device.deviceId }}</span>
+        <span class="device-speed">{{ device.speedKmh != null ? device.speedKmh.toFixed(1) + ' км/ч' : '—' }}</span>
+      </button>
+    }
+  </aside>
+
+  <div #mapContainer class="map"></div>
+</div>

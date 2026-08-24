@@ -18,6 +18,64 @@
   }
 }
 
+.layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.device-list {
+  width: 260px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  background: #111827;
+  border-right: 1px solid #1f2937;
+  font-family: system-ui, sans-serif;
+
+  .empty {
+    padding: 1rem;
+    color: #6b7280;
+    font-size: 0.875rem;
+  }
+}
+
+.device-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  width: 100%;
+  padding: 0.625rem 1rem;
+  border: none;
+  border-bottom: 1px solid #1f2937;
+  background: transparent;
+  color: #e5e7eb;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+
+  &:hover {
+    background: #1f2937;
+  }
+
+  &.selected {
+    background: #2563eb;
+  }
+
+  .device-id {
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+
+  .device-speed {
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+
+  &.selected .device-speed {
+    color: #dbeafe;
+  }
+}
+
 .map {
   flex: 1;
 }

@@ -36,6 +36,8 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   protected readonly deviceCount = signal(0);
   protected readonly lastUpdated = signal<Date | null>(null);
   protected readonly error = signal<string | null>(null);
+  protected readonly devices = signal<TelemetryState[]>([]);
+  protected readonly selectedDeviceId = signal<string | null>(null);
 
   private readonly deviceService = inject(DeviceService);
 
@@ -65,10 +67,21 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     this.map?.remove();
   }
 
+  protected selectDevice(deviceId: string): void {
+    const marker = this.markers.get(deviceId);
+    if (!marker || !this.map) {
+      return;
+    }
+    this.selectedDeviceId.set(deviceId);
+    this.map.flyTo(marker.getLatLng(), Math.max(this.map.getZoom(), 15));
+    marker.openPopup();
+  }
+
   private render(states: TelemetryState[]): void {
     this.error.set(null);
     this.deviceCount.set(states.length);
     this.lastUpdated.set(new Date());
+    this.devices.set([...states].sort((a, b) => a.deviceId.localeCompare(b.deviceId)));
 
     const seen = new Set<string>();
 
@@ -90,6 +103,9 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
       if (!seen.has(deviceId)) {
         marker.remove();
         this.markers.delete(deviceId);
+        if (this.selectedDeviceId() === deviceId) {
+          this.selectedDeviceId.set(null);
+        }
       }
     }
   }
