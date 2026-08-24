@@ -82,21 +82,6 @@ resource "yandex_mdb_kafka_cluster" "this" {
       }
     }
   }
-
-  user {
-    name     = "telemetry"
-    password = var.kafka_password
-
-    permission {
-      topic_name = "telemetry.raw"
-      role       = "ACCESS_ROLE_PRODUCER"
-    }
-
-    permission {
-      topic_name = "telemetry.raw"
-      role       = "ACCESS_ROLE_CONSUMER"
-    }
-  }
 }
 
 resource "yandex_mdb_kafka_topic" "telemetry_raw" {
@@ -104,4 +89,21 @@ resource "yandex_mdb_kafka_topic" "telemetry_raw" {
   name               = "telemetry.raw"
   partitions         = 4
   replication_factor = 1
+}
+
+# Инлайновый user {} внутри yandex_mdb_kafka_cluster устарел — провайдер требует отдельный ресурс.
+resource "yandex_mdb_kafka_user" "telemetry" {
+  cluster_id = yandex_mdb_kafka_cluster.this.id
+  name       = "telemetry"
+  password   = var.kafka_password
+
+  permission {
+    topic_name = yandex_mdb_kafka_topic.telemetry_raw.name
+    role       = "ACCESS_ROLE_PRODUCER"
+  }
+
+  permission {
+    topic_name = yandex_mdb_kafka_topic.telemetry_raw.name
+    role       = "ACCESS_ROLE_CONSUMER"
+  }
 }
