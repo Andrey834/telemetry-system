@@ -1,0 +1,38 @@
+# Применяется на ArgoCD, установленной в кластере Yandex Cloud:
+#   kubectl apply -f argocd/yandex/ingestion-service.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingestion-service
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Andrey834/telemetry-system.git
+    targetRevision: main
+    path: helm/ingestion-service
+    helm:
+      valuesObject:
+        image:
+          repository: cr.yandex/crp9isuggbupe94f02pg/ingestion-service
+        # Ноды Yandex Managed Kubernetes аутентифицируются в cr.yandex через собственный
+        # сервисный аккаунт (роль container-registry.images.puller) — отдельный imagePullSecret
+        # не нужен, в отличие от Timeweb.
+        imagePullSecrets: []
+        env:
+          kafkaBootstrapServers: "bootstrap.c9qg0ilp22vs9q3tpioq.mdb.yandexcloud.net:9091"
+          kafkaSecurityProtocol: "SASL_SSL"
+          kafkaUsername: "telemetry"
+        credentialsSecretName: ingestion-service-credentials
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: telemetry-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

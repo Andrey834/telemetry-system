@@ -1,0 +1,32 @@
+# Применяется на ArgoCD, установленной в кластере Timeweb Cloud:
+#   kubectl apply -f argocd/timeweb/query-service.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: query-service
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Andrey834/telemetry-system.git
+    targetRevision: main
+    path: helm/query-service
+    helm:
+      valuesObject:
+        image:
+          repository: 3829bdb3-inventive-amalthea.registry.twcstorage.ru/query-service
+        env:
+          redisHost: "192.168.0.9"
+        credentialsSecretName: query-service-credentials
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: telemetry-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

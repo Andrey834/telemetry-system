@@ -2,11 +2,11 @@ spring:
   application:
     name: ${PROCESSOR_NAME:telemetry-processor}
   r2dbc:
-    url: r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:telemetry}
+    url: r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:telemetry}?sslMode=${DB_SSL_MODE:disable}
     username: ${DB_USER:telemetry}
     password: ${DB_PASSWORD:telemetry}
   flyway:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:telemetry}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:telemetry}?ssl=${DB_SSL_ENABLED:false}&sslmode=${DB_SSL_MODE:disable}
     user: ${DB_USER:telemetry}
     password: ${DB_PASSWORD:telemetry}
   data:

@@ -1,7 +1,10 @@
 replicaCount: 2
 
+# Реальные image.repository / env.kafka* / credentialsSecretName задаются per-cloud в
+# ArgoCD Application (см. argocd/timeweb/ и argocd/yandex/) через spec.source.helm.valuesObject —
+# здесь только generic-дефолты для локального helm template/lint.
 image:
-  repository: 3829bdb3-inventive-amalthea.registry.twcstorage.ru/ingestion-service
+  repository: telemetry/ingestion-service
   tag: "0.0.1"
   pullPolicy: Always
 
@@ -28,9 +31,9 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 
 env:
-  kafkaBootstrapServers: "192.168.0.8:9092"
-  kafkaSecurityProtocol: "SASL_PLAINTEXT"
-  kafkaUsername: "telemetry"
+  kafkaBootstrapServers: "kafka:9092"
+  kafkaSecurityProtocol: "PLAINTEXT"
+  kafkaUsername: ""
   telemetryTopic: "telemetry.raw"
   ingestionPort: "8080"
 

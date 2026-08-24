@@ -1,7 +1,9 @@
 replicaCount: 2
 
+# Реальные image.repository задаются per-cloud в ArgoCD Application (см. argocd/timeweb/ и
+# argocd/yandex/) через spec.source.helm.valuesObject — здесь только generic-дефолт.
 image:
-  repository: 3829bdb3-inventive-amalthea.registry.twcstorage.ru/dashboard
+  repository: telemetry/dashboard
   tag: "0.0.1"
   pullPolicy: Always
 

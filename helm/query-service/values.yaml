@@ -1,7 +1,10 @@
 replicaCount: 2
 
+# Реальные image.repository / env.* / credentialsSecretName задаются per-cloud в
+# ArgoCD Application (см. argocd/timeweb/ и argocd/yandex/) через spec.source.helm.valuesObject —
+# здесь только generic-дефолты для локального helm template/lint.
 image:
-  repository: 3829bdb3-inventive-amalthea.registry.twcstorage.ru/query-service
+  repository: telemetry/query-service
   tag: "0.0.1"
   pullPolicy: Always
 
@@ -28,7 +31,7 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 
 env:
-  redisHost: "192.168.0.9"
+  redisHost: "redis"
   redisPort: "6379"
   queryPort: "8082"
   # Домен дашборда (Angular), которому разрешён CORS-доступ к этому API — замените на реальный

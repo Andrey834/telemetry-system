@@ -1,0 +1,38 @@
+# Применяется на ArgoCD, установленной в кластере Timeweb Cloud:
+#   kubectl apply -f argocd/timeweb/telemetry-processor.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: telemetry-processor
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/Andrey834/telemetry-system.git
+    targetRevision: main
+    path: helm/telemetry-processor
+    helm:
+      valuesObject:
+        image:
+          repository: 3829bdb3-inventive-amalthea.registry.twcstorage.ru/telemetry-processor
+        env:
+          kafkaBootstrapServers: "192.168.0.8:9092"
+          kafkaSecurityProtocol: "SASL_PLAINTEXT"
+          kafkaUsername: "telemetry"
+          redisHost: "192.168.0.9"
+          dbHost: "192.168.0.10"
+          dbSslMode: "disable"
+          dbSslEnabled: "false"
+        credentialsSecretName: telemetry-processor-credentials
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: telemetry-system
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

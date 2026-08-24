@@ -16,4 +16,6 @@ data:
   DB_PORT: {{ .Values.env.dbPort | quote }}
   DB_NAME: {{ .Values.env.dbName | quote }}
   DB_USER: {{ .Values.env.dbUser | quote }}
+  DB_SSL_MODE: {{ .Values.env.dbSslMode | quote }}
+  DB_SSL_ENABLED: {{ .Values.env.dbSslEnabled | quote }}
   PROCESSOR_PORT: {{ .Values.env.processorPort | quote }}

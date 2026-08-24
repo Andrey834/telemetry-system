@@ -1,7 +1,10 @@
 replicaCount: 2
 
+# Реальные image.repository / env.* / credentialsSecretName задаются per-cloud в
+# ArgoCD Application (см. argocd/timeweb/ и argocd/yandex/) через spec.source.helm.valuesObject —
+# здесь только generic-дефолты для локального helm template/lint.
 image:
-  repository: 3829bdb3-inventive-amalthea.registry.twcstorage.ru/telemetry-processor
+  repository: telemetry/telemetry-processor
   tag: "0.0.1"
   pullPolicy: Always
 
@@ -28,17 +31,19 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 
 env:
-  kafkaBootstrapServers: "192.168.0.8:9092"
-  kafkaSecurityProtocol: "SASL_PLAINTEXT"
-  kafkaUsername: "telemetry"
+  kafkaBootstrapServers: "kafka:9092"
+  kafkaSecurityProtocol: "PLAINTEXT"
+  kafkaUsername: ""
   telemetryTopic: "telemetry.raw"
   telemetryConsumerGroup: "telemetry-processor"
-  redisHost: "192.168.0.9"
+  redisHost: "redis"
   redisPort: "6379"
-  dbHost: "192.168.0.10"
+  dbHost: "postgres"
   dbPort: "5432"
   dbName: "telemetry"
   dbUser: "telemetry"
+  dbSslMode: "disable"
+  dbSslEnabled: "false"
   processorPort: "8081"
 
 # DB_PASSWORD/REDIS_PASSWORD/KAFKA_PASSWORD — создаются вручную в кластере, не хранятся в git:
