@@ -20,6 +20,10 @@ echo "==> Переключаю kubectl-контекст на $KUBE_CONTEXT"
 kubectl config use-context "$KUBE_CONTEXT"
 
 echo "==> Логин в $REGISTRY (через yc CLI, без ручного токена)"
+# docker logout сбрасывает закешированные credential'ы cr.yandex — без этого после пересоздания
+# registry (terraform destroy/apply с новым registry_id) push иногда падает с "Registry <старый
+# id> not found", хотя configure-docker формально проходит успешно.
+docker logout cr.yandex >/dev/null 2>&1 || true
 yc container registry configure-docker
 
 for svc in "${SERVICES[@]}"; do
