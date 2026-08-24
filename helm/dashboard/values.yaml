@@ -40,6 +40,10 @@ ingress:
   host: dashboard.telemetry.example.com   # замените на реальный домен, указывающий на IP ingress-nginx LoadBalancer
   clusterIssuer: letsencrypt-staging      # переключите на letsencrypt-prod после проверки на staging
   tlsSecretName: dashboard-tls
+  # Secret с ключом "auth" (htpasswd-формат "логин:bcrypt-хеш") — создаётся отдельно
+  # (см. terraform/platform/argocd_apps.tf, kubernetes_secret.dashboard_basic_auth).
+  # Пусто/не задано — Basic Auth выключен.
+  basicAuthSecretName: ""
 
 probes:
   liveness:

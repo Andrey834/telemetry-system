@@ -20,3 +20,7 @@ prometheus_workspace_id = "monXXXXXXXXXXXXXXXXX"
 
 # Без реального домена Let's Encrypt не выпустит сертификат — включить (true), когда домен появится.
 enable_cert_manager = false
+letsencrypt_email   = "REPLACE_ME@example.com"
+
+dashboard_basic_auth_user     = "admin"
+dashboard_basic_auth_password = "REPLACE_ME"

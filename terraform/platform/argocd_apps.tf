@@ -20,6 +20,10 @@ locals {
   postgres_host   = data.terraform_remote_state.infra.outputs.postgres_host
   redis_host      = data.terraform_remote_state.infra.outputs.redis_host
 
+  dashboard_host     = "telemetry.srvmls.ru"
+  query_service_host = "query.telemetry.srvmls.ru"
+  cluster_issuer     = "letsencrypt-prod"
+
   # Ноды Yandex Managed Kubernetes аутентифицируются в cr.yandex через собственный сервисный
   # аккаунт (роль container-registry.images.puller) — imagePullSecrets не нужен.
   argocd_apps = {
@@ -31,6 +35,7 @@ locals {
         kafkaUsername         = "telemetry"
       }
       credentialsSecretName = "ingestion-service-credentials"
+      ingress               = null
     }
     telemetry-processor = {
       image = "cr.yandex/${local.registry_id}/telemetry-processor"
@@ -45,18 +50,41 @@ locals {
         dbSslEnabled          = "true"
       }
       credentialsSecretName = "telemetry-processor-credentials"
+      ingress               = null
     }
     query-service = {
       image = "cr.yandex/${local.registry_id}/query-service"
       env = {
-        redisHost = local.redis_host
+        redisHost          = local.redis_host
+        corsAllowedOrigins = "https://${local.dashboard_host}"
       }
       credentialsSecretName = "query-service-credentials"
+      # Пока enable_cert_manager=false (первый этап — только инфра/платформа, домен ещё не
+      # привязан к ingress_nginx_ip), Ingress не создаём вообще: ссылка на несуществующий
+      # ClusterIssuer уйдёт в вечный pending. Включаем вместе с cert-manager вторым apply,
+      # когда DNS уже готов.
+      ingress = var.enable_cert_manager ? {
+        enabled       = true
+        className     = "nginx"
+        host          = local.query_service_host
+        clusterIssuer = local.cluster_issuer
+        tlsSecretName = "query-service-tls"
+      } : null
     }
     dashboard = {
-      image                 = "cr.yandex/${local.registry_id}/dashboard"
-      env                   = {}
+      image = "cr.yandex/${local.registry_id}/dashboard"
+      env = {
+        queryServiceUrl = "https://${local.query_service_host}"
+      }
       credentialsSecretName = null
+      ingress = var.enable_cert_manager ? {
+        enabled             = true
+        className           = "nginx"
+        host                = local.dashboard_host
+        clusterIssuer       = local.cluster_issuer
+        tlsSecretName       = "dashboard-tls"
+        basicAuthSecretName = try(kubernetes_secret.dashboard_basic_auth[0].metadata[0].name, null)
+      } : null
     }
   }
 
@@ -94,6 +122,21 @@ resource "kubernetes_secret" "app_credentials" {
   data = each.value
 }
 
+# nginx-ingress ожидает htpasswd-файл в ключе "auth" ("логин:bcrypt-хеш"), поддерживает bcrypt
+# напрямую — генерируем хеш built-in функцией Terraform, без htpasswd/внешних утилит.
+resource "kubernetes_secret" "dashboard_basic_auth" {
+  count = var.enable_cert_manager && var.dashboard_basic_auth_user != null ? 1 : 0
+
+  metadata {
+    name      = "dashboard-basic-auth"
+    namespace = kubernetes_namespace.telemetry_system.metadata[0].name
+  }
+
+  data = {
+    auth = "${var.dashboard_basic_auth_user}:${bcrypt(var.dashboard_basic_auth_password)}"
+  }
+}
+
 resource "kubectl_manifest" "argocd_app" {
   for_each = local.argocd_apps
 
@@ -119,6 +162,9 @@ resource "kubectl_manifest" "argocd_app" {
             },
             each.value.credentialsSecretName == null ? {} : {
               credentialsSecretName = each.value.credentialsSecretName
+            },
+            lookup(each.value, "ingress", null) == null ? {} : {
+              ingress = each.value.ingress
             }
           )
         }

@@ -59,6 +59,18 @@ resource "helm_release" "ingress_nginx" {
   ]
 }
 
+# Внешний IP LoadBalancer'а — нужен для DNS A-записи домена, до его выдачи cert-manager
+# ACME-проверка не пройдёт. Двухэтапный workflow: 1) apply с enable_cert_manager=false, взять
+# ingress_nginx_ip из output, прописать в DNS; 2) выставить enable_cert_manager=true и applyнуть
+# ещё раз — DNS уже резолвится, ACME-challenge проходит с первого раза.
+data "kubernetes_service" "ingress_nginx_controller" {
+  metadata {
+    name      = "ingress-nginx-controller"
+    namespace = kubernetes_namespace.ingress_nginx.metadata[0].name
+  }
+  depends_on = [helm_release.ingress_nginx]
+}
+
 # Образы cert-manager идут с quay.io, недоступного с нод Yandex Cloud — готового зеркала на
 # cr.yandex для него нет ни в одном маркетплейс-продукте. Разбираться с этим стоит, когда
 # появится домен и cert-manager реально понадобится включать.

@@ -40,3 +40,22 @@ variable "enable_cert_manager" {
   type    = bool
   default = false
 }
+
+variable "letsencrypt_email" {
+  description = "Email для уведомлений Let's Encrypt об истечении сертификата (ClusterIssuer)"
+  type        = string
+  default     = null
+}
+
+variable "dashboard_basic_auth_user" {
+  description = "Логин Basic Auth для публичного dashboard"
+  type        = string
+  default     = null
+}
+
+variable "dashboard_basic_auth_password" {
+  description = "Пароль Basic Auth для публичного dashboard"
+  type        = string
+  sensitive   = true
+  default     = null
+}

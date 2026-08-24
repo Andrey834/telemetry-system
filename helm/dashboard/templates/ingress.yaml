@@ -8,6 +8,11 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- with .Values.ingress.basicAuthSecretName }}
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: {{ . }}
+    nginx.ingress.kubernetes.io/auth-realm: "Authentication Required"
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   tls:
