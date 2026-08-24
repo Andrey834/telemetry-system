@@ -1,5 +1,7 @@
 package ru.telemetry.ingestion.config;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.kafka.autoconfigure.KafkaProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,5 +28,16 @@ public class KafkaProducerConfig {
     public KafkaTemplate<String, TelemetryEvent> kafkaTemplate(
             ProducerFactory<String, TelemetryEvent> producerFactory) {
         return new KafkaTemplate<>(producerFactory);
+    }
+
+    // DefaultKafkaProducerFactory создаёт реальный KafkaProducer лениво, при первом send() —
+    // без прогрева это ~5-7с (SASL-логин + TLS handshake + metadata fetch) на самом первом
+    // запросе к /telemetry после старта пода. partitionsFor() форсирует создание продюсера
+    // здесь, до того как под станет Ready (пробы уже учитывают эту задержку в initialDelaySeconds).
+    @Bean
+    public ApplicationRunner warmUpKafkaProducer(
+            KafkaTemplate<String, TelemetryEvent> kafkaTemplate,
+            @Value("${app.telemetry.topic}") String topic) {
+        return args -> kafkaTemplate.partitionsFor(topic);
     }
 }
