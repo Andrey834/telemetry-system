@@ -54,9 +54,11 @@ credentialsSecretName: telemetry-processor-credentials
 probes:
   liveness:
     path: /actuator/health/liveness
-    initialDelaySeconds: 15
+    initialDelaySeconds: 45
     periodSeconds: 10
+    failureThreshold: 6
   readiness:
     path: /actuator/health/readiness
-    initialDelaySeconds: 10
+    initialDelaySeconds: 20
     periodSeconds: 5
+    failureThreshold: 6

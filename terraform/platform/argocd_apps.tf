@@ -8,6 +8,12 @@ data "terraform_remote_state" "infra" {
   }
 }
 
+# Публичный корневой сертификат Yandex Cloud для Managed-баз — нужен клиенту Kafka (SASL_SSL),
+# иначе PKIX path building failed (default JVM truststore его не знает).
+data "http" "yandex_ca" {
+  url = "https://storage.yandexcloud.net/cloud-certs/CA.pem"
+}
+
 locals {
   registry_id     = data.terraform_remote_state.infra.outputs.registry_id
   kafka_bootstrap = data.terraform_remote_state.infra.outputs.kafka_bootstrap_servers
@@ -56,12 +62,14 @@ locals {
 
   argocd_secrets = {
     ingestion-service-credentials = {
-      KAFKA_PASSWORD = data.terraform_remote_state.infra.outputs.kafka_password
+      KAFKA_PASSWORD    = data.terraform_remote_state.infra.outputs.kafka_password
+      KAFKA_SSL_CA_CERT = data.http.yandex_ca.response_body
     }
     telemetry-processor-credentials = {
-      DB_PASSWORD    = data.terraform_remote_state.infra.outputs.postgres_password
-      REDIS_PASSWORD = data.terraform_remote_state.infra.outputs.redis_password
-      KAFKA_PASSWORD = data.terraform_remote_state.infra.outputs.kafka_password
+      DB_PASSWORD       = data.terraform_remote_state.infra.outputs.postgres_password
+      REDIS_PASSWORD    = data.terraform_remote_state.infra.outputs.redis_password
+      KAFKA_PASSWORD    = data.terraform_remote_state.infra.outputs.kafka_password
+      KAFKA_SSL_CA_CERT = data.http.yandex_ca.response_body
     }
     query-service-credentials = {
       REDIS_PASSWORD = data.terraform_remote_state.infra.outputs.redis_password

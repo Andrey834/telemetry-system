@@ -7,6 +7,10 @@ spring:
       security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
       sasl.mechanism: PLAIN
       sasl.jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME:}" password="${KAFKA_PASSWORD:}";
+      # используется только когда security.protocol реально включает SSL (SASL_SSL) — на
+      # SASL_PLAINTEXT (Timeweb) эти свойства просто игнорируются клиентом
+      ssl.truststore.type: PEM
+      ssl.truststore.certificates: ${KAFKA_SSL_CA_CERT:}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer

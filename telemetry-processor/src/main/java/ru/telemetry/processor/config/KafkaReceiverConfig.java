@@ -27,7 +27,8 @@ public class KafkaReceiverConfig {
             @Value("${app.telemetry.consumer-group}") String groupId,
             @Value("${spring.kafka.properties.security.protocol:PLAINTEXT}") String securityProtocol,
             @Value("${spring.kafka.properties.sasl.username:}") String saslUsername,
-            @Value("${spring.kafka.properties.sasl.password:}") String saslPassword) {
+            @Value("${spring.kafka.properties.sasl.password:}") String saslPassword,
+            @Value("${spring.kafka.properties.ssl.truststore.certificates:}") String sslCaCert) {
 
         Map<String, Object> props = new HashMap<>();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -40,6 +41,12 @@ public class KafkaReceiverConfig {
             props.put("sasl.mechanism", "PLAIN");
             props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\""
                     + saslUsername + "\" password=\"" + saslPassword + "\";");
+        }
+        // используется только когда security.protocol реально включает SSL (SASL_SSL) — на
+        // SASL_PLAINTEXT (Timeweb) эти свойства просто игнорируются клиентом
+        if (!sslCaCert.isBlank()) {
+            props.put("ssl.truststore.type", "PEM");
+            props.put("ssl.truststore.certificates", sslCaCert);
         }
 
         // Проект намеренно не тянет spring-kafka (весь Kafka I/O здесь на reactor-kafka ради
