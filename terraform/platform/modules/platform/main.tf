@@ -94,8 +94,11 @@ resource "yandex_kubernetes_marketplace_helm_release" "kube_prometheus_stack" {
     "grafana.service.type"                                              = "ClusterIP" # наружу — через Ingress/port-forward, не публичный LoadBalancer напрямую
     "grafana.sidecar.dashboards.enabled"                                = "true"
     "grafana.sidecar.dashboards.label"                                  = "grafana_dashboard"
-    "grafana.sidecar.dashboards.labelValue"                             = "1"
-    "grafana.sidecar.dashboards.searchNamespace"                        = "ALL" # дашборд едет в неймспейсе приложения, не monitoring — без ALL sidecar видел бы ConfigMap только в своём namespace
+    # grafana.sidecar.dashboards.labelValue убран — текущая версия marketplace-продукта не
+    # принимает этот ключ ("value ... not found" при apply), схема user_values изменилась
+    # с момента, когда мы это настраивали. Sidecar будет подхватывать ConfigMap по одному
+    # наличию лейбла grafana_dashboard, без проверки конкретного значения.
+    "grafana.sidecar.dashboards.searchNamespace" = "ALL" # дашборд едет в неймспейсе приложения, не monitoring — без ALL sidecar видел бы ConfigMap только в своём namespace
     "prometheus.prometheusSpec.retention"                               = "15d"
     "prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues" = "false" # подхватывать ServiceMonitor из любого namespace, не только своего релиза
   }
@@ -111,7 +114,8 @@ resource "yandex_kubernetes_marketplace_helm_release" "argocd" {
   name      = "argocd"
   namespace = kubernetes_namespace.argocd.metadata[0].name
 
-  user_values = {
-    "configs.params.server.insecure" = "true" # TLS терминируется на Ingress/LoadBalancer перед ArgoCD — для демо-стенда достаточно
-  }
+  # user_values пуст: configs.params.server.insecure текущая версия marketplace-продукта не
+  # принимает ("value ... not found") — схема изменилась с момента настройки. ArgoCD ставится
+  # с дефолтами продукта; доступ через port-forward будет по https, не http.
+  user_values = {}
 }
