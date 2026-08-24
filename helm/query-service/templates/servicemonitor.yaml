@@ -1,0 +1,14 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "query-service.fullname" . }}
+  labels:
+    {{- include "query-service.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "query-service.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
