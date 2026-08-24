@@ -53,7 +53,7 @@ resource "yandex_mdb_redis_cluster_v2" "this" {
   }
 
   resources = {
-    resource_preset_id = "hm1.nano"
+    resource_preset_id = "b3-c1-m4" # hm1.nano недоступен в ru-central1-d — сверено через yc managed-redis resource-preset list
     disk_size          = 16
   }
 
