@@ -24,6 +24,7 @@ import { DeviceAdmin } from './device-admin';
 import { Toast } from '../shared/toast';
 
 const MARKER_ANIMATION_MS = 1500;
+const PLAYBACK_STEP_MS = 500;
 const DEFAULT_CENTER: L.LatLngExpression = [55.751244, 37.618423]; // Москва — стартовый вид карты
 
 type SortBy = 'name' | 'speed' | 'status';
@@ -69,6 +70,13 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   protected readonly mobileSidebarOpen = signal(false);
   protected readonly searchQuery = signal('');
 
+  protected readonly playbackIndex = signal(0);
+  protected readonly isPlaying = signal(false);
+  protected readonly playbackTime = computed(() => {
+    const point = this.routePoints()[this.playbackIndex()];
+    return point ? new Date(point.recordedAt).toLocaleTimeString() : '';
+  });
+
   protected readonly selectedDevice = computed(() =>
     this.devices().find((d) => d.deviceId === this.selectedDeviceId()) ?? null,
   );
@@ -112,6 +120,8 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   private readonly markerAnimations = new Map<string, number>();
   private routeLine?: L.Polyline;
   private heatLayer?: L.HeatLayer;
+  private playbackMarker?: L.CircleMarker;
+  private playbackTimer?: ReturnType<typeof setInterval>;
   private pollSubscription?: Subscription;
 
   // Для toast "устройство пропало" — статус с прошлого тика поллинга, чтобы поймать именно
@@ -145,6 +155,9 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     this.pollSubscription?.unsubscribe();
     for (const frame of this.markerAnimations.values()) {
       cancelAnimationFrame(frame);
+    }
+    if (this.playbackTimer != null) {
+      clearInterval(this.playbackTimer);
     }
     this.map?.remove();
   }
@@ -288,6 +301,11 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
 
   private drawRoute(points: RoutePoint[]): void {
     this.routeLine?.remove();
+    this.stopPlayback();
+    this.playbackMarker?.remove();
+    this.playbackMarker = undefined;
+    this.playbackIndex.set(0);
+
     if (!this.map || points.length < 2) {
       return;
     }
@@ -295,6 +313,56 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
       points.map((p) => [p.lat, p.lon] as L.LatLngExpression),
       { color: '#2563eb', weight: 3 },
     ).addTo(this.map);
+
+    // Отдельный маркер плеера маршрута — не путать с живым маркером устройства (кластеризуется,
+    // двигается плавно к текущей позиции); этот статично стоит там, куда указывает слайдер ниже.
+    this.playbackMarker = L.circleMarker([points[0].lat, points[0].lon], {
+      radius: 8,
+      color: '#f97316',
+      fillColor: '#f97316',
+      fillOpacity: 0.9,
+      weight: 2,
+    }).addTo(this.map);
+  }
+
+  protected setPlaybackIndex(index: number): void {
+    this.playbackIndex.set(index);
+    this.updatePlaybackMarkerPosition();
+  }
+
+  protected togglePlayback(): void {
+    if (this.isPlaying()) {
+      this.stopPlayback();
+      return;
+    }
+    if (this.playbackIndex() >= this.routePoints().length - 1) {
+      this.playbackIndex.set(0);
+    }
+    this.isPlaying.set(true);
+    this.playbackTimer = setInterval(() => {
+      const next = this.playbackIndex() + 1;
+      if (next >= this.routePoints().length) {
+        this.stopPlayback();
+        return;
+      }
+      this.playbackIndex.set(next);
+      this.updatePlaybackMarkerPosition();
+    }, PLAYBACK_STEP_MS);
+  }
+
+  private stopPlayback(): void {
+    this.isPlaying.set(false);
+    if (this.playbackTimer != null) {
+      clearInterval(this.playbackTimer);
+      this.playbackTimer = undefined;
+    }
+  }
+
+  private updatePlaybackMarkerPosition(): void {
+    const point = this.routePoints()[this.playbackIndex()];
+    if (point && this.playbackMarker) {
+      this.playbackMarker.setLatLng([point.lat, point.lon]);
+    }
   }
 
   private comparatorFor(sortBy: SortBy): (a: DeviceView, b: DeviceView) => number {
