@@ -135,7 +135,9 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   // пришли раньше, чем предыдущая успела доиграть.
   private readonly markerAnimations = new Map<string, number>();
   private tileLayer?: L.TileLayer;
-  private routeLine?: L.Polyline;
+  // Ключ — deviceId: маршрут на карте показывается только у выбранного (клик по строке) и у
+  // отмеченных чекбоксом "сравнить" устройств, не у всего парка.
+  private readonly routeLines = new Map<string, L.Polyline>();
   private heatLayer?: L.HeatLayer;
   private playbackMarker?: L.CircleMarker;
   private playbackTimer?: ReturnType<typeof setInterval>;
@@ -243,14 +245,18 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     this.deviceService.getHistory(deviceId).subscribe({
       next: (points) => {
         this.routePoints.set(points);
-        this.drawRoute(points);
+        this.resetPlayback(points);
+        this.syncRouteLines();
       },
-      error: () => this.routePoints.set([]),
+      error: () => {
+        this.routePoints.set([]);
+        this.syncRouteLines();
+      },
     });
   }
 
-  /** Отдельный от selectDevice чекбокс "сравнить" — не двигает карту, только добавляет линию
-   * скорости этого устройства на общий график в charts. */
+  /** Отдельный от selectDevice чекбокс "сравнить" — не двигает карту, но теперь тоже рисует
+   * маршрут этого устройства на карте (не только линию на графике скорости в charts). */
   protected toggleCompare(deviceId: string, event: Event): void {
     event.stopPropagation();
     const next = new Set(this.compareIds());
@@ -260,6 +266,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
       const series = new Map(this.compareSeries());
       series.delete(deviceId);
       this.compareSeries.set(series);
+      this.syncRouteLines();
       return;
     }
 
@@ -270,6 +277,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
         const series = new Map(this.compareSeries());
         series.set(deviceId, points);
         this.compareSeries.set(series);
+        this.syncRouteLines();
       },
     });
   }
@@ -334,8 +342,48 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     }
   }
 
-  private drawRoute(points: RoutePoint[]): void {
-    this.routeLine?.remove();
+  /** Маршрут на карте — только у выбранного устройства (клик по строке, цвет --accent) и у
+   * отмеченных чекбоксом "сравнить" (остальные цвета палитры), пересчитывается заново при любом
+   * изменении выбора/сравнения, а не накапливается. */
+  private syncRouteLines(): void {
+    if (!this.map) {
+      return;
+    }
+    const selectedId = this.selectedDeviceId();
+    const desired = new Map<string, RoutePoint[]>();
+    if (selectedId && this.routePoints().length > 1) {
+      desired.set(selectedId, this.routePoints());
+    }
+    for (const [deviceId, points] of this.compareSeries()) {
+      if (!desired.has(deviceId) && points.length > 1) {
+        desired.set(deviceId, points);
+      }
+    }
+
+    for (const [deviceId, line] of this.routeLines) {
+      if (!desired.has(deviceId)) {
+        line.remove();
+        this.routeLines.delete(deviceId);
+      }
+    }
+
+    const compareColors = [this.cssVar('--ok'), this.cssVar('--warn'), this.cssVar('--bad')];
+    let compareIndex = 0;
+    for (const [deviceId, points] of desired) {
+      const color = deviceId === selectedId ? this.cssVar('--accent') : compareColors[compareIndex++ % compareColors.length];
+      const latlngs = points.map((p) => [p.lat, p.lon] as L.LatLngExpression);
+      const existing = this.routeLines.get(deviceId);
+      if (existing) {
+        existing.setLatLngs(latlngs).setStyle({ color });
+      } else {
+        this.routeLines.set(deviceId, L.polyline(latlngs, { color, weight: 3 }).addTo(this.map));
+      }
+    }
+  }
+
+  /** Маркер плеера маршрута — только для выбранного (не сравниваемых) устройства, слайдер снизу
+   * управляет именно им. */
+  private resetPlayback(points: RoutePoint[]): void {
     this.stopPlayback();
     this.playbackMarker?.remove();
     this.playbackMarker = undefined;
@@ -344,15 +392,6 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     if (!this.map || points.length < 2) {
       return;
     }
-    this.routeLine = L.polyline(
-      points.map((p) => [p.lat, p.lon] as L.LatLngExpression),
-      { color: this.cssVar('--accent'), weight: 3 },
-    ).addTo(this.map);
-
-    // Отдельный маркер плеера маршрута — не путать с живым маркером устройства (кластеризуется,
-    // двигается плавно к текущей позиции); этот статично стоит там, куда указывает слайдер ниже.
-    // Цвет --warn, а не --accent (тот уже занят линией маршрута) — маркер плеера должен читаться
-    // отдельно от самой линии.
     const playbackColor = this.cssVar('--warn');
     this.playbackMarker = L.circleMarker([points[0].lat, points[0].lon], {
       radius: 8,
