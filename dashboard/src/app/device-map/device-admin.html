@@ -94,13 +94,18 @@
               </td>
 
               <td class="px-1 py-1.5">
-                <input
-                  type="checkbox"
-                  class="h-4 w-4 accent-accent"
-                  [checked]="device.active"
+                <button
+                  type="button"
+                  role="switch"
+                  [attr.aria-checked]="device.active"
+                  class="relative h-4 w-7 flex-none rounded-full transition-colors disabled:opacity-50 {{ device.active ? 'bg-accent-soft border border-accent/60' : 'bg-line' }}"
                   [disabled]="updatingId() === device.deviceId"
-                  (change)="toggleActive(device)"
-                />
+                  (click)="toggleActive(device)"
+                >
+                  <span
+                    class="absolute top-0.5 h-3 w-3 rounded-full transition-transform {{ device.active ? 'translate-x-3.5 bg-accent' : 'translate-x-0.5 bg-fg-faint' }}"
+                  ></span>
+                </button>
               </td>
 
               <td class="px-3 py-1.5 text-right">

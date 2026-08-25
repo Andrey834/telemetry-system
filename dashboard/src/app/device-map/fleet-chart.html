@@ -81,10 +81,22 @@
     </div>
   </div>
 
-  <div class="glass flex flex-col gap-2.5 rounded-panel p-3.5">
+  <div class="glass flex flex-col gap-3 rounded-panel p-3.5">
     <div class="text-[11px] uppercase tracking-wider text-fg-faint">Статусы по группам</div>
-    <div class="relative min-h-40 flex-1">
-      <canvas baseChart [data]="groupStatusData()" [options]="barChartOptions()" type="bar"></canvas>
+    <div class="flex flex-1 flex-col justify-center gap-3">
+      @for (row of groupStatusRows(); track row.groupName) {
+        <div class="flex flex-col gap-1.5">
+          <div class="flex justify-between text-xs text-fg-muted">
+            <span>{{ row.groupName }}</span>
+            <span class="tabular-nums">{{ row.total }}</span>
+          </div>
+          <div class="flex h-3.5 overflow-hidden rounded-full bg-line">
+            <span class="bg-ok" [style.width.%]="row.onlinePct"></span>
+            <span class="bg-warn" [style.width.%]="row.stalePct"></span>
+            <span class="bg-off" [style.width.%]="row.offlinePct"></span>
+          </div>
+        </div>
+      }
     </div>
   </div>
 

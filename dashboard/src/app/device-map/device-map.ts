@@ -40,14 +40,23 @@ function leafletWithPlugins(): typeof L {
   return (window as unknown as { L: typeof L }).L;
 }
 
-// Классическая проблема Leaflet + бандлеры: относительные url() в CSS не резолвятся так,
-// как ожидает Leaflet, из-за чего маркеры остаются без иконки. Иконки скопированы в
-// assets/leaflet отдельным assets-глобом (angular.json), путь указываем явно.
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'assets/leaflet/marker-icon-2x.png',
-  iconUrl: 'assets/leaflet/marker-icon.png',
-  shadowUrl: 'assets/leaflet/marker-shadow.png',
-});
+function fade(color: string, percent: number): string {
+  return `color-mix(in oklab, ${color} ${percent}%, transparent)`;
+}
+
+/** Маркер устройства — цветная светящаяся точка вместо дефолтной синей "капли" Leaflet, цвет
+ * по статусу (--ok/--warn/--off). Кольцо-обводка — bg-surface-2, чтобы точка не сливалась
+ * с тёмными тайлами карты. */
+function deviceIcon(color: string): L.DivIcon {
+  return L.divIcon({
+    className: '',
+    html: `<span style="display:block;width:100%;height:100%;border-radius:999px;
+             background:${color};box-shadow:0 0 8px ${color};border:2px solid var(--surface-2)"></span>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+    popupAnchor: [0, -12],
+  });
+}
 
 @Component({
   imports: [FleetChart, DeviceAdmin, Toast],
@@ -129,6 +138,9 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   // Обновляем позиции существующих маркеров, а не пересоздаём слой на каждый poll —
   // так у маркера не "мигает" state между тиками опроса.
   private readonly markers = new Map<string, L.Marker>();
+  // Для раскраски кластерных "пузырей" по составу — leaflet.markercluster сам этого не умеет,
+  // iconCreateFunction ниже читает статус каждого дочернего маркера отсюда.
+  private readonly markerStatuses = new Map<L.Marker, DeviceStatus>();
   private markerClusterGroup?: L.MarkerClusterGroup;
   // Плавное движение маркера между обновлениями вместо мгновенного "прыжка" — id текущего
   // requestAnimationFrame на устройство, чтобы отменить недоигранную анимацию, если новые данные
@@ -160,7 +172,34 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
 
     // Кластеризация — на большом парке (200+ устройств, как в нагрузочном тесте) отдельные маркеры
     // превращаются в кашу из точек, кластер-группа схлопывает их до раскрытия при зуме.
-    this.markerClusterGroup = leafletWithPlugins().markerClusterGroup();
+    // iconCreateFunction — свой цвет "пузыря" по составу вложенных маркеров (не дефолтный жёлтый
+    // плагина): весь кластер online — зелёный, есть offline — серый, иначе — жёлтый (stale).
+    this.markerClusterGroup = leafletWithPlugins().markerClusterGroup({
+      iconCreateFunction: (cluster: L.MarkerCluster) => {
+        const children = cluster.getAllChildMarkers();
+        let worst: DeviceStatus = 'ONLINE';
+        for (const child of children) {
+          const status = this.markerStatuses.get(child as L.Marker);
+          if (status === 'OFFLINE') {
+            worst = 'OFFLINE';
+            break;
+          }
+          if (status === 'STALE') {
+            worst = 'STALE';
+          }
+        }
+        const color = this.cssVar(worst === 'OFFLINE' ? '--off' : worst === 'STALE' ? '--warn' : '--ok');
+        const count = children.length;
+        const size = count < 10 ? 30 : count < 100 ? 36 : 42;
+        return L.divIcon({
+          html: `<div style="width:100%;height:100%;border-radius:999px;display:flex;align-items:center;justify-content:center;
+                   background:${fade(color, 22)};border:1px solid ${fade(color, 55)};color:${color};
+                   font:600 12px Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums">${count}</div>`,
+          className: '',
+          iconSize: [size, size],
+        });
+      },
+    });
     this.markerClusterGroup.addTo(this.map);
 
     // Кнопки "Маршрут"/"Сравнить" внутри попапа — это сырой innerHTML (не Angular-шаблон),
@@ -458,6 +497,18 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     }
   }
 
+  private statusColor(status: DeviceStatus): string {
+    switch (status) {
+      case 'ONLINE':
+        return this.cssVar('--ok');
+      case 'STALE':
+        return this.cssVar('--warn');
+      case 'OFFLINE':
+      default:
+        return this.cssVar('--off');
+    }
+  }
+
   protected statusDotClass(status: DeviceStatus): string {
     switch (status) {
       case 'ONLINE':
@@ -503,10 +554,13 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
       if (existing) {
         this.animateMarkerTo(device.deviceId, existing, position);
         existing.setPopupContent(this.popupHtml(device));
+        existing.setIcon(deviceIcon(this.statusColor(device.status)));
+        this.markerStatuses.set(existing, device.status);
       } else {
-        const marker = L.marker(position).bindPopup(this.popupHtml(device));
+        const marker = L.marker(position, { icon: deviceIcon(this.statusColor(device.status)) }).bindPopup(this.popupHtml(device));
         this.markerClusterGroup!.addLayer(marker);
         this.markers.set(device.deviceId, marker);
+        this.markerStatuses.set(marker, device.status);
       }
     }
 
@@ -516,6 +570,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
         this.stopMarkerAnimation(deviceId);
         this.markerClusterGroup!.removeLayer(marker);
         this.markers.delete(deviceId);
+        this.markerStatuses.delete(marker);
         if (this.selectedDeviceId() === deviceId) {
           this.selectedDeviceId.set(null);
         }

@@ -3,7 +3,7 @@ import { Component, computed, inject, input } from '@angular/core';
 import { Chart, ChartConfiguration, ChartData, Plugin, ScriptableContext } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
 import { DeviceEvent } from '../models/device-event';
-import { DeviceView } from '../models/device-view';
+import { DeviceStatus, DeviceView } from '../models/device-view';
 import { FleetActivityPoint } from '../models/fleet-activity-point';
 import { RoutePoint } from '../models/route-point';
 import { ThemeService } from '../services/theme.service';
@@ -152,16 +152,6 @@ export class FleetChart {
         padding: 8,
       },
     },
-  }));
-
-  protected readonly barChartOptions = computed<ChartConfiguration<'bar'>['options']>(() => ({
-    animation: false,
-    indexAxis: 'y',
-    scales: {
-      x: { grid: { color: this.chartTheme().grid }, border: { display: false }, ticks: { color: this.chartTheme().faint }, stacked: true },
-      y: { grid: { display: false }, border: { color: this.chartTheme().grid }, ticks: { color: this.chartTheme().text }, stacked: true },
-    },
-    plugins: { legend: { position: 'bottom', labels: { color: this.chartTheme().text, boxWidth: 10, boxHeight: 10 } } },
   }));
 
   protected readonly histogramOptions = computed<ChartConfiguration<'bar'>['options']>(() => ({
@@ -342,30 +332,26 @@ export class FleetChart {
     };
   });
 
-  protected readonly groupStatusData = computed<ChartData<'bar'>>(() => {
-    const groups = new Map<string, Record<string, number>>();
+  /** Не Chart.js — простые цветные полоски вёрсткой (как в макете), пропорции считаются здесь. */
+  protected readonly groupStatusRows = computed(() => {
+    const groups = new Map<string, Record<DeviceStatus, number>>();
     for (const device of this.devices()) {
       const counts = groups.get(device.groupName) ?? { ONLINE: 0, STALE: 0, OFFLINE: 0 };
       counts[device.status]++;
       groups.set(device.groupName, counts);
     }
-    const groupNames = [...groups.keys()].sort((a, b) => a.localeCompare(b));
-    const statuses: Array<keyof typeof STATUS_LABELS> = ['ONLINE', 'STALE', 'OFFLINE'];
-    const colors = this.statusColors() as Record<string, string>;
-    return {
-      labels: groupNames,
-      datasets: statuses.map((status, i) => ({
-        data: groupNames.map((name) => groups.get(name)![status]),
-        label: STATUS_LABELS[status],
-        backgroundColor: colors[status],
-        borderRadius: 3,
-        borderSkipped: false,
-        barThickness: 14,
-        // borderSkipped:false + borderRadius на каждом сегменте стека рисует скруглённые углы
-        // с обеих сторон сегмента, а не только на крайнем — приемлемо для тонких статус-полосок.
-        order: i,
-      })),
-    };
+    return [...groups.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([groupName, counts]) => {
+        const total = counts['ONLINE'] + counts['STALE'] + counts['OFFLINE'];
+        return {
+          groupName,
+          total,
+          onlinePct: total ? (counts['ONLINE'] / total) * 100 : 0,
+          stalePct: total ? (counts['STALE'] / total) * 100 : 0,
+          offlinePct: total ? (counts['OFFLINE'] / total) * 100 : 0,
+        };
+      });
   });
 
   protected readonly activityChartData = computed<ChartData<'line'>>(() => {

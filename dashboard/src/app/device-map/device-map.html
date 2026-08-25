@@ -155,13 +155,18 @@
             <span class="text-xs tabular-nums text-fg-muted">
               {{ device.speedKmh != null ? device.speedKmh.toFixed(0) : '—' }}
             </span>
-            <input
-              type="checkbox"
-              class="h-3.5 w-3.5 flex-shrink-0 appearance-none rounded-[4px] border border-line checked:border-accent checked:bg-accent"
+            <!-- span, не button/checkbox — строка списка сама уже <button>, вложенный <button>
+                 был бы невалиден и ломал разметку (браузер закрыл бы внешний раньше времени). -->
+            <span
+              role="checkbox"
+              tabindex="0"
+              [attr.aria-checked]="compareIds().has(device.deviceId)"
               title="Сравнить на графике скорости"
-              [checked]="compareIds().has(device.deviceId)"
+              class="flex h-3.5 w-3.5 flex-none items-center justify-center rounded-[4px] border text-[9px] leading-none {{ compareIds().has(device.deviceId) ? 'border-accent bg-accent text-white' : 'border-line text-transparent' }}"
               (click)="toggleCompare(device.deviceId, $event)"
-            />
+              (keydown.enter)="toggleCompare(device.deviceId, $event)"
+              (keydown.space)="toggleCompare(device.deviceId, $event)"
+            >✓</span>
           </button>
         }
       }
