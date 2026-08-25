@@ -1,11 +1,36 @@
-# telemetry-system
+# Telemetry System
+
+![Java](https://img.shields.io/badge/Java-25-e0605e?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1%20WebFlux-6DB33F?logo=springboot&logoColor=white)
+![Angular](https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white)
+![Kafka](https://img.shields.io/badge/Kafka-KRaft%20%C2%B7%203%20nodes-231F20?logo=apachekafka&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-Yandex%20Cloud-326CE5?logo=kubernetes&logoColor=white)
+![ArgoCD](https://img.shields.io/badge/ArgoCD-GitOps-EF7B4D?logo=argo&logoColor=white)
 
 Приём и обработка телеметрии от парка транспортных средств/датчиков в реальном времени —
-портфолио-проект, реализующий архитектуру, описанную ниже.
+портфолио-проект, реализующий архитектуру, описанную ниже, плюс живой дашборд слежения за парком.
 
 Живая карта устройств (Angular + Leaflet), 200 устройств из нагрузочного теста на карте:
 
 ![Живая карта устройств](img/app.jpg)
+
+## Возможности дашборда
+
+- **Живая карта** — кластеризация маркеров (`leaflet.markercluster`), тёмные/светлые тайлы
+  (CARTO), heatmap плотности, попапы с быстрым доступом к маршруту и сравнению
+- **Push вместо поллинга** — обновления по SSE поверх `fetch` с ручным разбором потока (нативный
+  `EventSource` не умеет `Authorization`-заголовок, а весь проект аутентифицируется JWT-Bearer)
+- **Плеер маршрута** — прокрутка истории конкретного устройства по времени, отдельным маркером
+- **Журнал событий** — офлайн/онлайн-переходы вычисляются на лету оконным SQL (`LAG()`) по уже
+  существующей истории телеметрии — без новой таблицы и без живого детектора, дублирующего записи
+  между репликами `query-service`
+- **Аналитика парка** — статусы онлайн/устарело/офлайн, скорость и сравнение нескольких устройств
+  на одном графике, гистограмма скоростей, статусы по группам, активность парка во времени
+- **Регистрация и управление устройствами** (роль ADMIN) — выдача API-ключа один раз, переименование,
+  деактивация без удаления истории
+- **JWT-авторизация с ролями** ADMIN/OPERATOR
+- **Светлая/тёмная тема** на единой системе design-токенов (Tailwind v4 `@theme inline`) — цвета
+  переключаются через CSS-переменные, без `dark:`-варианта на каждом классе в каждом шаблоне
 
 ## Архитектура
 
@@ -34,17 +59,19 @@
 |---|---|
 | `ingestion-service` | ✅ реализован — WebFlux REST-эндпоинт, API-key авторизация устройств, публикация в Kafka |
 | `telemetry-processor` | ✅ реализован — Kafka consumer group, запись в Redis + PostgreSQL |
-| `query-service` (live API) | ✅ реализован — WebFlux, JWT-авторизация, чтение из Redis + read-реплики Postgres |
-| `dashboard` (live-карта) | ✅ реализован — Angular + Leaflet + Tailwind, JWT-логин, сортировка/группировка/статусы устройств, маршрут и графики (Chart.js) |
+| `query-service` (live API) | ✅ реализован — WebFlux, JWT-авторизация с ролями ADMIN/OPERATOR, SSE-стрим, чтение из Redis + read-реплики Postgres, запись реестра устройств через отдельный primary-коннектор |
+| `dashboard` (live-карта) | ✅ реализован — Angular + Leaflet + Tailwind, JWT-логин, живая карта с кластеризацией и heatmap, плеер маршрута, журнал событий, аналитика (Chart.js), управление устройствами, светлая/тёмная тема |
 
 ## Стек
 
 Java 25, Spring Boot 4.1 (WebFlux), Spring Kafka (`ingestion-service`) и reactor-kafka
 (`telemetry-processor`, полностью неблокирующий Kafka I/O), R2DBC + Flyway, Reactive Redis,
-Spring Security + JWT (`query-service` — логин dashboard, API-key поверх SHA-256 —
-`ingestion-service` для устройств), read-реплика PostgreSQL под чтение (реестр устройств,
-история маршрута) отдельно от записи `telemetry-processor`, Angular 22 (standalone, signals) +
-Leaflet/OpenStreetMap + Tailwind CSS + Chart.js (`dashboard`), Docker Compose, Helm,
+Spring Security + JWT с ролями ADMIN/OPERATOR (`query-service` — логин dashboard, API-key поверх
+SHA-256 — `ingestion-service` для устройств), Server-Sent Events поверх `Flux` для живых обновлений
+дашборда без поллинга, read-реплика PostgreSQL под чтение (реестр устройств, история маршрута) и
+отдельный primary-коннектор под запись реестра, отдельно от write-пути `telemetry-processor`,
+Angular 22 (standalone, signals) + Leaflet/OpenStreetMap (`leaflet.markercluster`, `leaflet.heat`) +
+Tailwind CSS v4 (design-токены, светлая/тёмная тема) + Chart.js (`dashboard`), Docker Compose, Helm,
 Terraform (Yandex Cloud), ArgoCD (GitOps), Prometheus/Grafana, cert-manager + ingress-nginx (HTTPS).
 
 ## Локальный запуск
