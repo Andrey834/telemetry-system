@@ -98,12 +98,12 @@
                   type="button"
                   role="switch"
                   [attr.aria-checked]="device.active"
-                  class="relative h-4 w-7 flex-none rounded-full transition-colors disabled:opacity-50 {{ device.active ? 'bg-accent-soft border border-accent/60' : 'bg-line' }}"
+                  class="relative h-4 w-7 flex-none overflow-hidden rounded-full transition-colors disabled:opacity-50 {{ device.active ? 'bg-accent-soft border border-accent/60' : 'bg-line' }}"
                   [disabled]="updatingId() === device.deviceId"
                   (click)="toggleActive(device)"
                 >
                   <span
-                    class="absolute top-0.5 h-3 w-3 rounded-full transition-transform {{ device.active ? 'translate-x-3.5 bg-accent' : 'translate-x-0.5 bg-fg-faint' }}"
+                    class="absolute left-0.5 top-0.5 h-3 w-3 rounded-full transition-transform {{ device.active ? 'translate-x-3 bg-accent' : 'translate-x-0 bg-fg-faint' }}"
                   ></span>
                 </button>
               </td>
