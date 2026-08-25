@@ -26,14 +26,17 @@ output "kubeconfig_command" {
 }
 
 output "postgres_host" {
-  # host[].role вычисляется сервером (MASTER/REPLICA) — индекс 0 не гарантированно primary
-  # с двумя host{} в кластере, фильтруем явно.
-  value = [for h in yandex_mdb_postgresql_cluster.this.host : h.fqdn if h.role == "MASTER"][0]
+  # host[].role вычисляется сервером (MASTER/REPLICA, подтверждено terraform state show) —
+  # индекс 0 не гарантированно primary с двумя host{} в кластере, фильтруем явно.
+  value = try([for h in yandex_mdb_postgresql_cluster.this.host : h.fqdn if h.role == "MASTER"][0], null)
 }
 
 output "postgres_replica_host" {
   description = "Read-реплика — сюда ходят query-service/ingestion-service, не мешая записи telemetry-processor в primary"
-  value       = [for h in yandex_mdb_postgresql_cluster.this.host : h.fqdn if h.role == "REPLICA"][0]
+  # try(...): пока Yandex не закончил разворачивать реплику (роль ещё не назначена), список
+  # пуст — [0] упал бы ошибкой "Invalid index" на первом apply. С try() выходит null, следующий
+  # apply/plan после того как Yandex доразвернёт хост, посчитает уже настоящее значение.
+  value = try([for h in yandex_mdb_postgresql_cluster.this.host : h.fqdn if h.role == "REPLICA"][0], null)
 }
 
 output "postgres_port" {
