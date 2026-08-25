@@ -5,15 +5,15 @@ import { RegisteredDevice } from '../models/registered-device';
 import { DeviceService } from '../services/device.service';
 
 const STATUS_BADGE_CLASSES: Record<DeviceStatus, string> = {
-  ONLINE: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
-  STALE: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
-  OFFLINE: 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
+  ONLINE: 'bg-ok/10 text-ok',
+  STALE: 'bg-warn/10 text-warn',
+  OFFLINE: 'bg-off/15 text-off',
 };
 
 @Component({
   imports: [FormsModule],
   selector: 'app-device-admin',
-  host: { class: 'block h-full overflow-y-auto bg-gray-100 dark:bg-gray-900 p-4 md:p-6' },
+  host: { class: 'block h-full overflow-y-auto p-4 md:p-6' },
   templateUrl: './device-admin.html',
 })
 export class DeviceAdmin {
