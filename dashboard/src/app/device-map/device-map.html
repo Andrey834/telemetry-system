@@ -1,38 +1,41 @@
-<div class="flex items-center gap-3 px-3 md:px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-transparent text-gray-900 dark:text-gray-200 text-sm font-sans">
+<div class="glass relative z-[1100] flex h-12 items-center gap-3 whitespace-nowrap px-3 text-sm md:px-4">
   <button
     type="button"
-    class="md:hidden rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+    class="rounded-ctl p-1.5 text-fg-muted hover:bg-accent-soft md:hidden"
     (click)="toggleMobileSidebar()"
     aria-label="Список устройств"
   >
     ☰
   </button>
 
-  <span class="whitespace-nowrap">Устройств на карте: {{ deviceCount() }}</span>
+  <div class="flex items-center gap-2">
+    <span class="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-ctl border border-accent/45 bg-accent-soft text-xs text-accent">◎</span>
+    <span class="hidden text-sm font-medium tracking-tight sm:inline">Fleet Live</span>
+  </div>
+
+  <span class="flex items-center gap-1.5 rounded-full border border-line bg-fg/[0.04] px-2.5 py-1 text-xs tabular-nums text-fg-muted">
+    <span class="h-1.5 w-1.5 rounded-full bg-ok"></span>{{ deviceCount() }} устройств
+  </span>
   @if (lastUpdated()) {
-    <span class="hidden sm:inline text-gray-500 dark:text-gray-400 whitespace-nowrap">Обновлено: {{ lastUpdated()!.toLocaleTimeString() }}</span>
+    <span class="hidden text-xs tabular-nums text-fg-faint sm:inline">обновлено {{ lastUpdated()!.toLocaleTimeString() }}</span>
   }
   @if (error()) {
-    <span class="text-red-600 dark:text-red-400">{{ error() }}</span>
+    <span class="text-xs text-bad">{{ error() }}</span>
   }
 
   <div class="flex-1"></div>
 
-  <div class="hidden sm:flex rounded overflow-hidden border border-gray-300 dark:border-gray-700">
+  <div class="hidden gap-0.5 rounded-ctl border border-line bg-fg/[0.04] p-0.5 sm:flex">
     <button
       type="button"
-      class="px-3 py-1"
-      [class.bg-blue-600]="activeTab() === 'map'"
-      [class.text-white]="activeTab() === 'map'"
+      class="rounded-[8px] px-3 py-1 text-xs {{ activeTab() === 'map' ? 'bg-accent-soft text-fg' : 'text-fg-muted' }}"
       (click)="setActiveTab('map')"
     >
       Карта
     </button>
     <button
       type="button"
-      class="px-3 py-1"
-      [class.bg-blue-600]="activeTab() === 'charts'"
-      [class.text-white]="activeTab() === 'charts'"
+      class="rounded-[8px] px-3 py-1 text-xs {{ activeTab() === 'charts' ? 'bg-accent-soft text-fg' : 'text-fg-muted' }}"
       (click)="setActiveTab('charts')"
     >
       Графики
@@ -40,9 +43,7 @@
     @if (auth.role() === 'ADMIN') {
       <button
         type="button"
-        class="px-3 py-1"
-        [class.bg-blue-600]="activeTab() === 'devices'"
-        [class.text-white]="activeTab() === 'devices'"
+        class="rounded-[8px] px-3 py-1 text-xs {{ activeTab() === 'devices' ? 'bg-accent-soft text-fg' : 'text-fg-muted' }}"
         (click)="setActiveTab('devices')"
       >
         Устройства
@@ -53,9 +54,7 @@
   @if (activeTab() === 'map') {
     <button
       type="button"
-      class="hidden sm:inline rounded border border-gray-300 dark:border-gray-700 px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700"
-      [class.bg-blue-600]="heatmapEnabled()"
-      [class.text-white]="heatmapEnabled()"
+      class="hidden items-center gap-1.5 rounded-ctl border px-2.5 py-1 text-xs sm:inline-flex {{ heatmapEnabled() ? 'border-accent/45 bg-accent-soft text-accent' : 'border-line text-fg-muted' }}"
       (click)="toggleHeatmap()"
     >
       Heatmap
@@ -64,21 +63,27 @@
 
   <button
     type="button"
-    class="rounded border border-gray-300 dark:border-gray-700 px-2.5 py-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+    class="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-ctl border border-line text-sm text-fg-muted hover:bg-accent-soft"
     (click)="theme.toggle()"
     [attr.aria-label]="theme.theme() === 'dark' ? 'Светлая тема' : 'Тёмная тема'"
   >
-    {{ theme.theme() === 'dark' ? '☀️' : '🌙' }}
+    {{ theme.theme() === 'dark' ? '☀' : '☾' }}
   </button>
 
-  <span class="hidden md:inline text-gray-500 dark:text-gray-400">{{ auth.username() }}</span>
-  <button
-    type="button"
-    class="rounded border border-gray-300 dark:border-gray-700 px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700"
-    (click)="logout()"
-  >
-    Выйти
-  </button>
+  <div class="flex items-center gap-2 border-l border-line pl-3">
+    <span class="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-full border border-accent/40 bg-accent-soft text-[11px] text-accent">{{ userInitials() }}</span>
+    <div class="hidden flex-col leading-tight sm:flex">
+      <span class="text-xs">{{ auth.username() }}</span>
+      <span class="text-[10px] tracking-wide text-fg-faint">{{ auth.role() }}</span>
+    </div>
+    <button
+      type="button"
+      class="rounded-ctl border border-line px-2.5 py-1 text-xs text-fg-muted hover:bg-accent-soft"
+      (click)="logout()"
+    >
+      Выйти
+    </button>
+  </div>
 </div>
 
 <div class="flex flex-1 min-h-0 relative">
@@ -88,75 +93,79 @@
   }
 
   <aside
-    class="w-72 flex-shrink-0 overflow-y-auto bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 font-sans
+    class="glass-2 w-72 flex-shrink-0 overflow-y-auto rounded-none border-y-0 border-l-0
            fixed md:static inset-y-0 left-0 z-[1001] transition-transform md:translate-x-0"
     [class.-translate-x-full]="!mobileSidebarOpen()"
   >
-    <div class="p-3 border-b border-gray-200 dark:border-gray-800">
-      <input
-        type="search"
-        class="w-full rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm px-2 py-1.5 border border-gray-300 dark:border-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-        placeholder="Поиск по имени или id…"
-        [value]="searchQuery()"
-        (input)="setSearchQuery($any($event.target).value)"
-      />
-    </div>
-
-    <div class="flex items-center gap-2 p-3 border-b border-gray-200 dark:border-gray-800">
-      <label class="text-xs text-gray-500 dark:text-gray-400" for="sort-by">Сортировка</label>
-      <select
-        id="sort-by"
-        class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm rounded px-2 py-1 border border-gray-300 dark:border-gray-700"
-        [value]="sortBy()"
-        (change)="setSortBy($any($event.target).value)"
-      >
-        <option value="name">По имени</option>
-        <option value="speed">По скорости</option>
-        <option value="status">По статусу</option>
-      </select>
+    <div class="flex flex-col gap-2 border-b border-line p-2.5">
+      <div class="flex h-8 items-center gap-2 rounded-ctl border border-line bg-app/40 px-2.5">
+        <span class="text-xs text-fg-faint">⌕</span>
+        <input
+          type="search"
+          class="w-full bg-transparent text-sm text-fg placeholder:text-fg-faint focus:outline-none"
+          placeholder="Поиск по имени или id…"
+          [value]="searchQuery()"
+          (input)="setSearchQuery($any($event.target).value)"
+        />
+      </div>
+      <div class="flex gap-1.5">
+        <button
+          type="button"
+          class="rounded-full border px-2.5 py-1 text-[11px] {{ sortBy() === 'name' ? 'border-accent/40 bg-accent-soft text-accent' : 'border-line text-fg-muted' }}"
+          (click)="setSortBy('name')"
+        >
+          по имени
+        </button>
+        <button
+          type="button"
+          class="rounded-full border px-2.5 py-1 text-[11px] {{ sortBy() === 'speed' ? 'border-accent/40 bg-accent-soft text-accent' : 'border-line text-fg-muted' }}"
+          (click)="setSortBy('speed')"
+        >
+          по скорости
+        </button>
+        <button
+          type="button"
+          class="rounded-full border px-2.5 py-1 text-[11px] {{ sortBy() === 'status' ? 'border-accent/40 bg-accent-soft text-accent' : 'border-line text-fg-muted' }}"
+          (click)="setSortBy('status')"
+        >
+          по статусу
+        </button>
+      </div>
     </div>
 
     @if (devices().length === 0) {
-      <div class="p-4 text-sm text-gray-400 dark:text-gray-500">Нет устройств</div>
+      <div class="p-4 text-sm text-fg-faint">Нет устройств</div>
     } @else if (groupedDevices().length === 0) {
-      <div class="p-4 text-sm text-gray-400 dark:text-gray-500">Ничего не найдено по запросу "{{ searchQuery() }}"</div>
+      <div class="p-4 text-sm text-fg-faint">Ничего не найдено по запросу "{{ searchQuery() }}"</div>
     }
 
-    @for (group of groupedDevices(); track group.groupName) {
-      <div class="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
-        {{ group.groupName }} ({{ group.devices.length }})
-      </div>
-      @for (device of group.devices; track device.deviceId) {
-        <button
-          type="button"
-          class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-800"
-          [class.bg-blue-600]="selectedDeviceId() === device.deviceId"
-          [class.text-white]="selectedDeviceId() === device.deviceId"
-          [class.hover:bg-blue-600]="selectedDeviceId() === device.deviceId"
-          (click)="selectDevice(device.deviceId)"
-        >
-          <span
-            class="h-2 w-2 flex-shrink-0 rounded-full"
-            [class.bg-green-500]="device.status === 'ONLINE'"
-            [class.bg-yellow-500]="device.status === 'STALE'"
-            [class.bg-gray-500]="device.status === 'OFFLINE'"
-          ></span>
-          <span class="flex-1 min-w-0">
-            <span class="block truncate text-sm font-medium">{{ device.name }}</span>
-            <span class="block text-xs opacity-80">
-              {{ device.speedKmh != null ? device.speedKmh.toFixed(1) + ' км/ч' : '—' }}
+    <div class="flex flex-col gap-0.5 p-2">
+      @for (group of groupedDevices(); track group.groupName) {
+        <div class="flex items-center justify-between px-2 pt-2.5 pb-1 text-[11px] font-medium uppercase tracking-wider text-fg-faint">
+          <span>{{ group.groupName }}</span><span class="tabular-nums">{{ group.devices.length }}</span>
+        </div>
+        @for (device of group.devices; track device.deviceId) {
+          <button
+            type="button"
+            class="flex h-[34px] w-full items-center gap-2 rounded-row px-2 text-left {{ selectedDeviceId() === device.deviceId ? 'border border-accent/38 bg-accent-soft' : 'border border-transparent hover:bg-fg/[0.04]' }}"
+            (click)="selectDevice(device.deviceId)"
+          >
+            <span class="h-[7px] w-[7px] flex-shrink-0 rounded-full {{ statusDotClass(device.status) }}"></span>
+            <span class="flex-1 min-w-0 truncate text-sm">{{ device.name }}</span>
+            <span class="text-xs tabular-nums text-fg-muted">
+              {{ device.speedKmh != null ? device.speedKmh.toFixed(0) : '—' }}
             </span>
-          </span>
-          <input
-            type="checkbox"
-            class="h-3.5 w-3.5 flex-shrink-0"
-            title="Сравнить на графике скорости"
-            [checked]="compareIds().has(device.deviceId)"
-            (click)="toggleCompare(device.deviceId, $event)"
-          />
-        </button>
+            <input
+              type="checkbox"
+              class="h-3.5 w-3.5 flex-shrink-0 appearance-none rounded-[4px] border border-line checked:border-accent checked:bg-accent"
+              title="Сравнить на графике скорости"
+              [checked]="compareIds().has(device.deviceId)"
+              (click)="toggleCompare(device.deviceId, $event)"
+            />
+          </button>
+        }
       }
-    }
+    </div>
   </aside>
 
   <div class="flex-1 min-w-0 relative">

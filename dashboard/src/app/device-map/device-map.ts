@@ -90,6 +90,8 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   // который целиком идёт в device-admin для управления реестром.
   protected readonly activeDevices = computed(() => this.devices().filter((d) => d.active));
 
+  protected readonly userInitials = computed(() => (this.auth.username() ?? '??').slice(0, 2).toUpperCase());
+
   // Группировка по groupName, внутри группы — сортировка по выбранному полю. Группы идут
   // в алфавитном порядке названия — предсказуемее, чем "как пришло с бэкенда". Поиск фильтрует
   // до группировки — пустые группы после фильтра просто не появляются в списке. Деактивированные
@@ -373,6 +375,18 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     const point = this.routePoints()[this.playbackIndex()];
     if (point && this.playbackMarker) {
       this.playbackMarker.setLatLng([point.lat, point.lon]);
+    }
+  }
+
+  protected statusDotClass(status: DeviceStatus): string {
+    switch (status) {
+      case 'ONLINE':
+        return 'bg-ok shadow-[0_0_6px_var(--ok)]';
+      case 'STALE':
+        return 'bg-warn shadow-[0_0_6px_var(--warn)]';
+      case 'OFFLINE':
+      default:
+        return 'bg-off';
     }
   }
 
