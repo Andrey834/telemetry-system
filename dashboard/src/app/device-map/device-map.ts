@@ -12,7 +12,7 @@ import * as L from 'leaflet';
 import 'leaflet.heat';
 import 'leaflet.markercluster';
 import { Router } from '@angular/router';
-import { Subscription, interval, startWith, switchMap } from 'rxjs';
+import { Subscription } from 'rxjs';
 import { DeviceService } from '../services/device.service';
 import { AuthService } from '../services/auth.service';
 import { DeviceView, DeviceStatus } from '../models/device-view';
@@ -22,7 +22,6 @@ import { FleetChart } from './fleet-chart';
 import { DeviceAdmin } from './device-admin';
 import { Toast } from '../shared/toast';
 
-const POLL_INTERVAL_MS = 5000;
 const MARKER_ANIMATION_MS = 1500;
 const DEFAULT_CENTER: L.LatLngExpression = [55.751244, 37.618423]; // Москва — стартовый вид карты
 
@@ -132,12 +131,12 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     this.markerClusterGroup = L.markerClusterGroup();
     this.markerClusterGroup.addTo(this.map);
 
-    this.pollSubscription = interval(POLL_INTERVAL_MS)
-      .pipe(startWith(0), switchMap(() => this.deviceService.getAll()))
-      .subscribe({
-        next: (states) => this.render(states),
-        error: () => this.error.set('Не удалось получить данные от query-service'),
-      });
+    // Push вместо поллинга каждые 5с — один долгоживущий SSE-поток, deviceService сам
+    // переподключается при обрыве.
+    this.pollSubscription = this.deviceService.streamDevices().subscribe({
+      next: (states) => this.render(states),
+      error: () => this.error.set('Не удалось получить данные от query-service'),
+    });
   }
 
   ngOnDestroy(): void {

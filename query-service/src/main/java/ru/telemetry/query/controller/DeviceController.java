@@ -1,6 +1,8 @@
 package ru.telemetry.query.controller;
 
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +16,7 @@ import ru.telemetry.query.model.RoutePoint;
 import ru.telemetry.query.model.TelemetryState;
 import ru.telemetry.query.service.DeviceQueryService;
 
+import java.time.Duration;
 import java.util.List;
 
 @RestController
@@ -49,5 +52,16 @@ public class DeviceController {
     @GetMapping("/activity")
     public Flux<FleetActivityPoint> getActivity(@RequestParam(defaultValue = "60") int minutes) {
         return queryService.findActivity(minutes);
+    }
+
+    /** Push вместо поллинга: сервис сам опрашивает Redis раз в 2с и шлёт клиенту только когда
+     * список реально изменился (distinctUntilChanged) — не Redis pub/sub между сервисами, чтобы
+     * не плодить новую связь между telemetry-processor и query-service ради этого. */
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<List<DeviceView>>> streamDevices() {
+        return Flux.interval(Duration.ZERO, Duration.ofSeconds(2))
+                .flatMap(tick -> queryService.findAllWithStatus().collectList())
+                .distinctUntilChanged()
+                .map(list -> ServerSentEvent.<List<DeviceView>>builder(list).build());
     }
 }
