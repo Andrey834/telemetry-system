@@ -2,9 +2,11 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  Injector,
   OnDestroy,
   ViewChild,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -121,6 +123,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   protected readonly auth = inject(AuthService);
   protected readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
+  private readonly injector = inject(Injector);
 
   private map?: L.Map;
   // Обновляем позиции существующих маркеров, а не пересоздаём слой на каждый poll —
@@ -131,6 +134,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   // requestAnimationFrame на устройство, чтобы отменить недоигранную анимацию, если новые данные
   // пришли раньше, чем предыдущая успела доиграть.
   private readonly markerAnimations = new Map<string, number>();
+  private tileLayer?: L.TileLayer;
   private routeLine?: L.Polyline;
   private heatLayer?: L.HeatLayer;
   private playbackMarker?: L.CircleMarker;
@@ -144,12 +148,13 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.map = L.map(this.mapContainer.nativeElement).setView(DEFAULT_CENTER, 11);
-    // Тёмные тайлы (CARTO Dark Matter) вместо светлых OSM по умолчанию — весь остальной UI тёмный,
-    // светлая карта была единственным несовпадающим по стилю местом.
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      maxZoom: 19,
-    }).addTo(this.map);
+
+    // Подложка следует за темой (CARTO Dark Matter/Positron). Начальный слой — синхронно, иначе
+    // карта на мгновение (до первого прогона effect(), который у Angular асинхронный) остаётся
+    // совсем без tile-слоя и без maxZoom, что ломает Leaflet при раннем map.remove() (поймано на
+    // юнит-тесте). effect() дальше отвечает только за переключение по клику.
+    this.applyMapTileTheme(this.theme.theme() === 'dark');
+    effect(() => this.applyMapTileTheme(this.theme.theme() === 'dark'), { injector: this.injector });
 
     // Кластеризация — на большом парке (200+ устройств, как в нагрузочном тесте) отдельные маркеры
     // превращаются в кашу из точек, кластер-группа схлопывает их до раскрытия при зуме.
@@ -341,18 +346,37 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     }
     this.routeLine = L.polyline(
       points.map((p) => [p.lat, p.lon] as L.LatLngExpression),
-      { color: '#2563eb', weight: 3 },
+      { color: this.cssVar('--accent'), weight: 3 },
     ).addTo(this.map);
 
     // Отдельный маркер плеера маршрута — не путать с живым маркером устройства (кластеризуется,
     // двигается плавно к текущей позиции); этот статично стоит там, куда указывает слайдер ниже.
+    // Цвет --warn, а не --accent (тот уже занят линией маршрута) — маркер плеера должен читаться
+    // отдельно от самой линии.
+    const playbackColor = this.cssVar('--warn');
     this.playbackMarker = L.circleMarker([points[0].lat, points[0].lon], {
       radius: 8,
-      color: '#f97316',
-      fillColor: '#f97316',
+      color: playbackColor,
+      fillColor: playbackColor,
       fillOpacity: 0.9,
       weight: 2,
     }).addTo(this.map);
+  }
+
+  private applyMapTileTheme(dark: boolean): void {
+    if (!this.map) {
+      return;
+    }
+    this.tileLayer?.remove();
+    const style = dark ? 'dark_all' : 'light_all';
+    this.tileLayer = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${style}/{z}/{x}/{y}{r}.png`, {
+      attribution: '&copy; OpenStreetMap contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      maxZoom: 19,
+    }).addTo(this.map);
+  }
+
+  private cssVar(name: string): string {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   }
 
   protected setPlaybackIndex(index: number): void {
