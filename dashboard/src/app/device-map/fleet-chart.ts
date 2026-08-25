@@ -54,11 +54,15 @@ export class FleetChart {
   readonly compareSeries = input<Map<string, RoutePoint[]>>(new Map());
   readonly activityPoints = input<FleetActivityPoint[]>([]);
 
+  // Данные обновляются каждые 5с (общий poll в device-map.ts) — анимация на каждое обновление
+  // выглядит как моргание графика, а не полезная информация, поэтому везде выключена.
   protected readonly statusChartOptions: ChartConfiguration<'doughnut'>['options'] = {
+    animation: false,
     plugins: { legend: { position: 'bottom', labels: { color: '#e5e7eb' } } },
   };
 
   protected readonly speedChartOptions: ChartConfiguration<'line'>['options'] = {
+    animation: false,
     scales: {
       x: { ticks: { color: '#9ca3af' } },
       y: { ticks: { color: '#9ca3af' }, title: { display: true, text: 'км/ч', color: '#9ca3af' } },
@@ -67,6 +71,7 @@ export class FleetChart {
   };
 
   protected readonly barChartOptions: ChartConfiguration<'bar'>['options'] = {
+    animation: false,
     scales: {
       x: { ticks: { color: '#9ca3af' }, stacked: true },
       y: { ticks: { color: '#9ca3af' }, stacked: true },
@@ -75,11 +80,13 @@ export class FleetChart {
   };
 
   protected readonly histogramOptions: ChartConfiguration<'bar'>['options'] = {
+    animation: false,
     scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' } } },
     plugins: { legend: { display: false } },
   };
 
   protected readonly activityChartOptions: ChartConfiguration<'line'>['options'] = {
+    animation: false,
     scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' } } },
     plugins: { legend: { display: false } },
   };
