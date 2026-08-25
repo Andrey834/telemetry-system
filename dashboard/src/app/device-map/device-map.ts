@@ -4,6 +4,7 @@ import {
   ElementRef,
   OnDestroy,
   ViewChild,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -12,10 +13,18 @@ import { Router } from '@angular/router';
 import { Subscription, interval, startWith, switchMap } from 'rxjs';
 import { DeviceService } from '../services/device.service';
 import { AuthService } from '../services/auth.service';
-import { DeviceView } from '../models/device-view';
+import { DeviceView, DeviceStatus } from '../models/device-view';
+import { RoutePoint } from '../models/route-point';
+import { FleetChart } from './fleet-chart';
 
 const POLL_INTERVAL_MS = 5000;
 const DEFAULT_CENTER: L.LatLngExpression = [55.751244, 37.618423]; // Москва — стартовый вид карты
+
+type SortBy = 'name' | 'speed' | 'status';
+type Tab = 'map' | 'charts';
+
+// Порядок статусов в сортировке "по статусу" — сначала те, на кого стоит смотреть внимательнее.
+const STATUS_ORDER: Record<DeviceStatus, number> = { OFFLINE: 0, STALE: 1, ONLINE: 2 };
 
 // Классическая проблема Leaflet + бандлеры: относительные url() в CSS не резолвятся так,
 // как ожидает Leaflet, из-за чего маркеры остаются без иконки. Иконки скопированы в
@@ -27,9 +36,9 @@ L.Icon.Default.mergeOptions({
 });
 
 @Component({
-  imports: [],
+  imports: [FleetChart],
+  host: { class: 'flex flex-col h-full' },
   selector: 'app-device-map',
-  styleUrl: './device-map.scss',
   templateUrl: './device-map.html',
 })
 export class DeviceMap implements AfterViewInit, OnDestroy {
@@ -40,6 +49,31 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   protected readonly error = signal<string | null>(null);
   protected readonly devices = signal<DeviceView[]>([]);
   protected readonly selectedDeviceId = signal<string | null>(null);
+  protected readonly routePoints = signal<RoutePoint[]>([]);
+
+  protected readonly sortBy = signal<SortBy>('name');
+  protected readonly activeTab = signal<Tab>('map');
+  protected readonly mobileSidebarOpen = signal(false);
+
+  protected readonly selectedDevice = computed(() =>
+    this.devices().find((d) => d.deviceId === this.selectedDeviceId()) ?? null,
+  );
+
+  // Группировка по groupName, внутри группы — сортировка по выбранному полю. Группы идут
+  // в алфавитном порядке названия — предсказуемее, чем "как пришло с бэкенда".
+  protected readonly groupedDevices = computed(() => {
+    const groups = new Map<string, DeviceView[]>();
+    for (const device of this.devices()) {
+      const list = groups.get(device.groupName) ?? [];
+      list.push(device);
+      groups.set(device.groupName, list);
+    }
+
+    const comparator = this.comparatorFor(this.sortBy());
+    return [...groups.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([groupName, list]) => ({ groupName, devices: [...list].sort(comparator) }));
+  });
 
   private readonly deviceService = inject(DeviceService);
   protected readonly auth = inject(AuthService);
@@ -49,6 +83,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   // Обновляем позиции существующих маркеров, а не пересоздаём слой на каждый poll —
   // так у маркера не "мигает" state между тиками опроса.
   private readonly markers = new Map<string, L.Marker>();
+  private routeLine?: L.Polyline;
   private pollSubscription?: Subscription;
 
   ngAfterViewInit(): void {
@@ -76,23 +111,67 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     this.router.navigateByUrl('/login');
   }
 
+  protected setSortBy(value: SortBy): void {
+    this.sortBy.set(value);
+  }
+
+  protected setActiveTab(tab: Tab): void {
+    this.activeTab.set(tab);
+  }
+
+  protected toggleMobileSidebar(): void {
+    this.mobileSidebarOpen.update((open) => !open);
+  }
+
   protected selectDevice(deviceId: string): void {
+    this.selectedDeviceId.set(deviceId);
+    this.mobileSidebarOpen.set(false);
+
     const marker = this.markers.get(deviceId);
-    if (!marker || !this.map) {
+    if (marker && this.map) {
+      this.map.flyTo(marker.getLatLng(), Math.max(this.map.getZoom(), 15));
+      marker.openPopup();
+    }
+
+    this.deviceService.getHistory(deviceId).subscribe({
+      next: (points) => {
+        this.routePoints.set(points);
+        this.drawRoute(points);
+      },
+      error: () => this.routePoints.set([]),
+    });
+  }
+
+  private drawRoute(points: RoutePoint[]): void {
+    this.routeLine?.remove();
+    if (!this.map || points.length < 2) {
       return;
     }
-    this.selectedDeviceId.set(deviceId);
-    this.map.flyTo(marker.getLatLng(), Math.max(this.map.getZoom(), 15));
-    marker.openPopup();
+    this.routeLine = L.polyline(
+      points.map((p) => [p.lat, p.lon] as L.LatLngExpression),
+      { color: '#2563eb', weight: 3 },
+    ).addTo(this.map);
+  }
+
+  private comparatorFor(sortBy: SortBy): (a: DeviceView, b: DeviceView) => number {
+    switch (sortBy) {
+      case 'speed':
+        return (a, b) => (b.speedKmh ?? -1) - (a.speedKmh ?? -1);
+      case 'status':
+        return (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || a.name.localeCompare(b.name);
+      case 'name':
+      default:
+        return (a, b) => a.name.localeCompare(b.name);
+    }
   }
 
   private render(allDevices: DeviceView[]): void {
     this.error.set(null);
     this.lastUpdated.set(new Date());
-    this.devices.set([...allDevices].sort((a, b) => a.deviceId.localeCompare(b.deviceId)));
+    this.devices.set(allDevices);
 
     // Устройства без текущих координат (ни разу не отчитались, либо запись протухла в Redis)
-    // остаются в списке слева (см. шаблон), но маркер на карте им ставить нечем.
+    // остаются в списке слева, но маркер на карте им ставить нечем.
     const onMap = allDevices.filter((d) => d.lat != null && d.lon != null);
     this.deviceCount.set(onMap.length);
 

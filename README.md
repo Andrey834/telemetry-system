@@ -32,16 +32,19 @@
 
 | Сервис | Статус |
 |---|---|
-| `ingestion-service` | ✅ реализован — WebFlux REST-эндпоинт, публикация в Kafka |
+| `ingestion-service` | ✅ реализован — WebFlux REST-эндпоинт, API-key авторизация устройств, публикация в Kafka |
 | `telemetry-processor` | ✅ реализован — Kafka consumer group, запись в Redis + PostgreSQL |
-| `query-service` (live API) | ✅ реализован — WebFlux, чтение текущего состояния из Redis |
-| `dashboard` (live-карта) | ✅ реализован — Angular + Leaflet, опрос query-service раз в 5с |
+| `query-service` (live API) | ✅ реализован — WebFlux, JWT-авторизация, чтение из Redis + read-реплики Postgres |
+| `dashboard` (live-карта) | ✅ реализован — Angular + Leaflet + Tailwind, JWT-логин, сортировка/группировка/статусы устройств, маршрут и графики (Chart.js) |
 
 ## Стек
 
 Java 25, Spring Boot 4.1 (WebFlux), Spring Kafka (`ingestion-service`) и reactor-kafka
 (`telemetry-processor`, полностью неблокирующий Kafka I/O), R2DBC + Flyway, Reactive Redis,
-Angular 22 (standalone, signals) + Leaflet/OpenStreetMap (`dashboard`), Docker Compose, Helm,
+Spring Security + JWT (`query-service` — логин dashboard, API-key поверх SHA-256 —
+`ingestion-service` для устройств), read-реплика PostgreSQL под чтение (реестр устройств,
+история маршрута) отдельно от записи `telemetry-processor`, Angular 22 (standalone, signals) +
+Leaflet/OpenStreetMap + Tailwind CSS + Chart.js (`dashboard`), Docker Compose, Helm,
 Terraform (Yandex Cloud), ArgoCD (GitOps), Prometheus/Grafana, cert-manager + ingress-nginx (HTTPS).
 
 ## Локальный запуск

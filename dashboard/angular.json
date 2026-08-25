@@ -34,7 +34,7 @@
                 "output": "assets/leaflet"
               }
             ],
-            "styles": ["node_modules/leaflet/dist/leaflet.css", "src/styles.scss"],
+            "styles": ["node_modules/leaflet/dist/leaflet.css", "src/styles.css"],
             "allowedCommonJsDependencies": ["leaflet"]
           },
           "configurations": {
@@ -42,7 +42,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
+                  "maximumWarning": "750kB",
                   "maximumError": "1MB"
                 },
                 {

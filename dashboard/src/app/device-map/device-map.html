@@ -1,33 +1,115 @@
-<div class="toolbar">
-  <span class="count">Устройств на карте: {{ deviceCount() }}</span>
+<div class="flex items-center gap-3 px-3 md:px-4 py-2 bg-gray-800 text-gray-200 text-sm font-sans">
+  <button
+    type="button"
+    class="md:hidden rounded p-1 hover:bg-gray-700"
+    (click)="toggleMobileSidebar()"
+    aria-label="Список устройств"
+  >
+    ☰
+  </button>
+
+  <span class="whitespace-nowrap">Устройств на карте: {{ deviceCount() }}</span>
   @if (lastUpdated()) {
-    <span class="updated">Обновлено: {{ lastUpdated()!.toLocaleTimeString() }}</span>
+    <span class="hidden sm:inline text-gray-400 whitespace-nowrap">Обновлено: {{ lastUpdated()!.toLocaleTimeString() }}</span>
   }
   @if (error()) {
-    <span class="error">{{ error() }}</span>
+    <span class="text-red-400">{{ error() }}</span>
   }
-  <span class="spacer"></span>
-  <span class="username">{{ auth.username() }}</span>
-  <button type="button" class="logout" (click)="logout()">Выйти</button>
+
+  <div class="flex-1"></div>
+
+  <div class="hidden sm:flex rounded overflow-hidden border border-gray-700">
+    <button
+      type="button"
+      class="px-3 py-1"
+      [class.bg-blue-600]="activeTab() === 'map'"
+      (click)="setActiveTab('map')"
+    >
+      Карта
+    </button>
+    <button
+      type="button"
+      class="px-3 py-1"
+      [class.bg-blue-600]="activeTab() === 'charts'"
+      (click)="setActiveTab('charts')"
+    >
+      Графики
+    </button>
+  </div>
+
+  <span class="hidden md:inline text-gray-400">{{ auth.username() }}</span>
+  <button type="button" class="rounded border border-gray-700 px-3 py-1 hover:bg-gray-700" (click)="logout()">
+    Выйти
+  </button>
 </div>
 
-<div class="layout">
-  <aside class="device-list">
-    @if (devices().length === 0) {
-      <div class="empty">Нет устройств</div>
-    }
-    @for (device of devices(); track device.deviceId) {
-      <button
-        type="button"
-        class="device-item"
-        [class.selected]="selectedDeviceId() === device.deviceId"
-        (click)="selectDevice(device.deviceId)"
+<div class="flex flex-1 min-h-0 relative">
+  <!-- Мобильный оверлей-фон при открытой боковой панели -->
+  @if (mobileSidebarOpen()) {
+    <div class="md:hidden fixed inset-0 bg-black/50 z-[1000]" (click)="toggleMobileSidebar()"></div>
+  }
+
+  <aside
+    class="w-72 flex-shrink-0 overflow-y-auto bg-gray-900 border-r border-gray-800 font-sans
+           fixed md:static inset-y-0 left-0 z-[1001] transition-transform md:translate-x-0"
+    [class.-translate-x-full]="!mobileSidebarOpen()"
+  >
+    <div class="flex items-center gap-2 p-3 border-b border-gray-800">
+      <label class="text-xs text-gray-400" for="sort-by">Сортировка</label>
+      <select
+        id="sort-by"
+        class="flex-1 bg-gray-800 text-gray-200 text-sm rounded px-2 py-1 border border-gray-700"
+        [value]="sortBy()"
+        (change)="setSortBy($any($event.target).value)"
       >
-        <span class="device-id">{{ device.deviceId }}</span>
-        <span class="device-speed">{{ device.speedKmh != null ? device.speedKmh.toFixed(1) + ' км/ч' : '—' }}</span>
-      </button>
+        <option value="name">По имени</option>
+        <option value="speed">По скорости</option>
+        <option value="status">По статусу</option>
+      </select>
+    </div>
+
+    @if (devices().length === 0) {
+      <div class="p-4 text-sm text-gray-500">Нет устройств</div>
+    }
+
+    @for (group of groupedDevices(); track group.groupName) {
+      <div class="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        {{ group.groupName }} ({{ group.devices.length }})
+      </div>
+      @for (device of group.devices; track device.deviceId) {
+        <button
+          type="button"
+          class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-800"
+          [class.bg-blue-600]="selectedDeviceId() === device.deviceId"
+          [class.hover:bg-blue-600]="selectedDeviceId() === device.deviceId"
+          (click)="selectDevice(device.deviceId)"
+        >
+          <span
+            class="h-2 w-2 flex-shrink-0 rounded-full"
+            [class.bg-green-500]="device.status === 'ONLINE'"
+            [class.bg-yellow-500]="device.status === 'STALE'"
+            [class.bg-gray-500]="device.status === 'OFFLINE'"
+          ></span>
+          <span class="flex-1 min-w-0">
+            <span class="block truncate text-sm font-medium text-gray-100">{{ device.name }}</span>
+            <span class="block text-xs text-gray-400">
+              {{ device.speedKmh != null ? device.speedKmh.toFixed(1) + ' км/ч' : '—' }}
+            </span>
+          </span>
+        </button>
+      }
     }
   </aside>
 
-  <div #mapContainer class="map"></div>
+  <div class="flex-1 min-w-0 relative">
+    <div #mapContainer class="absolute inset-0" [class.hidden]="activeTab() !== 'map'"></div>
+    @if (activeTab() === 'charts') {
+      <app-fleet-chart
+        class="absolute inset-0"
+        [devices]="devices()"
+        [selectedDeviceName]="selectedDevice()?.name ?? null"
+        [routePoints]="routePoints()"
+      />
+    }
+  </div>
 </div>

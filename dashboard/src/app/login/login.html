@@ -1,19 +1,42 @@
-<form class="login-form" (ngSubmit)="submit()">
-  <h1>telemetry-system</h1>
+<form
+  class="flex w-72 flex-col gap-4 rounded-lg bg-gray-800 p-8 text-gray-200"
+  (ngSubmit)="submit()"
+>
+  <h1 class="text-center text-lg font-semibold">telemetry-system</h1>
 
-  <label>
+  <label class="flex flex-col gap-1.5 text-sm">
     Логин
-    <input type="text" name="username" [(ngModel)]="username" autocomplete="username" required />
+    <input
+      type="text"
+      name="username"
+      class="rounded border border-gray-700 bg-gray-900 px-2 py-2 text-gray-200"
+      [(ngModel)]="username"
+      autocomplete="username"
+      required
+    />
   </label>
 
-  <label>
+  <label class="flex flex-col gap-1.5 text-sm">
     Пароль
-    <input type="password" name="password" [(ngModel)]="password" autocomplete="current-password" required />
+    <input
+      type="password"
+      name="password"
+      class="rounded border border-gray-700 bg-gray-900 px-2 py-2 text-gray-200"
+      [(ngModel)]="password"
+      autocomplete="current-password"
+      required
+    />
   </label>
 
   @if (error()) {
-    <div class="error">{{ error() }}</div>
+    <div class="text-sm text-red-400">{{ error() }}</div>
   }
 
-  <button type="submit" [disabled]="loading()">{{ loading() ? 'Вход…' : 'Войти' }}</button>
+  <button
+    type="submit"
+    class="mt-2 rounded bg-blue-600 py-2.5 disabled:opacity-60"
+    [disabled]="loading()"
+  >
+    {{ loading() ? 'Вход…' : 'Войти' }}
+  </button>
 </form>

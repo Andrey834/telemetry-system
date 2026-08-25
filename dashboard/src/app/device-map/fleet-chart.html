@@ -1,0 +1,21 @@
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 md:p-6 overflow-y-auto h-full bg-gray-900">
+  <div class="bg-gray-800 rounded-lg p-4 flex flex-col">
+    <h2 class="text-sm font-semibold text-gray-200 mb-3">Статус парка</h2>
+    <div class="relative flex-1 min-h-48">
+      <canvas baseChart [data]="statusChartData()" [options]="statusChartOptions" type="doughnut"></canvas>
+    </div>
+  </div>
+
+  <div class="bg-gray-800 rounded-lg p-4 flex flex-col">
+    <h2 class="text-sm font-semibold text-gray-200 mb-3">
+      Скорость{{ selectedDeviceName() ? ' — ' + selectedDeviceName() : '' }}
+    </h2>
+    <div class="relative flex-1 min-h-48">
+      @if (routePoints().length > 0) {
+        <canvas baseChart [data]="speedChartData()" [options]="speedChartOptions" type="line"></canvas>
+      } @else {
+        <p class="text-sm text-gray-500">Выберите устройство слева, чтобы увидеть график скорости.</p>
+      }
+    </div>
+  </div>
+</div>
