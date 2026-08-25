@@ -104,8 +104,10 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.map = L.map(this.mapContainer.nativeElement).setView(DEFAULT_CENTER, 11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
+    // Тёмные тайлы (CARTO Dark Matter) вместо светлых OSM по умолчанию — весь остальной UI тёмный,
+    // светлая карта была единственным несовпадающим по стилю местом.
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       maxZoom: 19,
     }).addTo(this.map);
 
