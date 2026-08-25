@@ -15,6 +15,7 @@ import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DeviceService } from '../services/device.service';
 import { AuthService } from '../services/auth.service';
+import { ThemeService } from '../services/theme.service';
 import { DeviceEvent } from '../models/device-event';
 import { DeviceView, DeviceStatus } from '../models/device-view';
 import { FleetActivityPoint } from '../models/fleet-activity-point';
@@ -112,6 +113,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
 
   private readonly deviceService = inject(DeviceService);
   protected readonly auth = inject(AuthService);
+  protected readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
 
   private map?: L.Map;

@@ -61,36 +61,36 @@ export class FleetChart {
   // выглядит как моргание графика, а не полезная информация, поэтому везде выключена.
   protected readonly statusChartOptions: ChartConfiguration<'doughnut'>['options'] = {
     animation: false,
-    plugins: { legend: { position: 'bottom', labels: { color: '#e5e7eb' } } },
+    plugins: { legend: { position: 'bottom', labels: { color: '#6b7280' } } },
   };
 
   protected readonly speedChartOptions: ChartConfiguration<'line'>['options'] = {
     animation: false,
     scales: {
-      x: { ticks: { color: '#9ca3af' } },
-      y: { ticks: { color: '#9ca3af' }, title: { display: true, text: 'км/ч', color: '#9ca3af' } },
+      x: { ticks: { color: '#6b7280' } },
+      y: { ticks: { color: '#6b7280' }, title: { display: true, text: 'км/ч', color: '#6b7280' } },
     },
-    plugins: { legend: { display: true, labels: { color: '#e5e7eb' } } },
+    plugins: { legend: { display: true, labels: { color: '#6b7280' } } },
   };
 
   protected readonly barChartOptions: ChartConfiguration<'bar'>['options'] = {
     animation: false,
     scales: {
-      x: { ticks: { color: '#9ca3af' }, stacked: true },
-      y: { ticks: { color: '#9ca3af' }, stacked: true },
+      x: { ticks: { color: '#6b7280' }, stacked: true },
+      y: { ticks: { color: '#6b7280' }, stacked: true },
     },
-    plugins: { legend: { position: 'bottom', labels: { color: '#e5e7eb' } } },
+    plugins: { legend: { position: 'bottom', labels: { color: '#6b7280' } } },
   };
 
   protected readonly histogramOptions: ChartConfiguration<'bar'>['options'] = {
     animation: false,
-    scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' } } },
+    scales: { x: { ticks: { color: '#6b7280' } }, y: { ticks: { color: '#6b7280' } } },
     plugins: { legend: { display: false } },
   };
 
   protected readonly activityChartOptions: ChartConfiguration<'line'>['options'] = {
     animation: false,
-    scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' } } },
+    scales: { x: { ticks: { color: '#6b7280' } }, y: { ticks: { color: '#6b7280' } } },
     plugins: { legend: { display: false } },
   };
 

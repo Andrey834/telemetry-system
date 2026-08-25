@@ -1,6 +1,16 @@
 @import "tailwindcss";
 
+/* Класс .dark на <html> (ThemeService) — светлая тема по умолчанию (Tailwind), у нас наоборот
+   тёмная исторически дефолтная, поэтому все шаблоны пишут светлые классы как базовые и dark:
+   как переопределение, а не наоборот. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 html, body {
   height: 100%;
   margin: 0;
+  background-color: #f3f4f6; /* gray-100 */
+}
+
+html.dark, html.dark body {
+  background-color: #111827; /* gray-900 */
 }

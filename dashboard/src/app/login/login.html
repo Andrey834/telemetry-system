@@ -1,5 +1,5 @@
 <form
-  class="flex w-72 flex-col gap-4 rounded-lg bg-gray-800 p-8 text-gray-200"
+  class="flex w-72 flex-col gap-4 rounded-lg bg-white dark:bg-gray-800 p-8 text-gray-900 dark:text-gray-200 shadow-lg dark:shadow-none"
   (ngSubmit)="submit()"
 >
   <h1 class="text-center text-lg font-semibold">telemetry-system</h1>
@@ -9,7 +9,7 @@
     <input
       type="text"
       name="username"
-      class="rounded border border-gray-700 bg-gray-900 px-2 py-2 text-gray-200"
+      class="rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-200 px-2 py-2"
       [(ngModel)]="username"
       autocomplete="username"
       required
@@ -21,7 +21,7 @@
     <input
       type="password"
       name="password"
-      class="rounded border border-gray-700 bg-gray-900 px-2 py-2 text-gray-200"
+      class="rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-200 px-2 py-2"
       [(ngModel)]="password"
       autocomplete="current-password"
       required
@@ -29,12 +29,12 @@
   </label>
 
   @if (error()) {
-    <div class="text-sm text-red-400">{{ error() }}</div>
+    <div class="text-sm text-red-600 dark:text-red-400">{{ error() }}</div>
   }
 
   <button
     type="submit"
-    class="mt-2 rounded bg-blue-600 py-2.5 disabled:opacity-60"
+    class="mt-2 rounded bg-blue-600 py-2.5 text-white disabled:opacity-60"
     [disabled]="loading()"
   >
     {{ loading() ? 'Вход…' : 'Войти' }}

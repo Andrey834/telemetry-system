@@ -1,7 +1,7 @@
-<div class="flex items-center gap-3 px-3 md:px-4 py-2 bg-gray-800 text-gray-200 text-sm font-sans">
+<div class="flex items-center gap-3 px-3 md:px-4 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-transparent text-gray-900 dark:text-gray-200 text-sm font-sans">
   <button
     type="button"
-    class="md:hidden rounded p-1 hover:bg-gray-700"
+    class="md:hidden rounded p-1 hover:bg-gray-100 dark:hover:bg-gray-700"
     (click)="toggleMobileSidebar()"
     aria-label="Список устройств"
   >
@@ -10,19 +10,20 @@
 
   <span class="whitespace-nowrap">Устройств на карте: {{ deviceCount() }}</span>
   @if (lastUpdated()) {
-    <span class="hidden sm:inline text-gray-400 whitespace-nowrap">Обновлено: {{ lastUpdated()!.toLocaleTimeString() }}</span>
+    <span class="hidden sm:inline text-gray-500 dark:text-gray-400 whitespace-nowrap">Обновлено: {{ lastUpdated()!.toLocaleTimeString() }}</span>
   }
   @if (error()) {
-    <span class="text-red-400">{{ error() }}</span>
+    <span class="text-red-600 dark:text-red-400">{{ error() }}</span>
   }
 
   <div class="flex-1"></div>
 
-  <div class="hidden sm:flex rounded overflow-hidden border border-gray-700">
+  <div class="hidden sm:flex rounded overflow-hidden border border-gray-300 dark:border-gray-700">
     <button
       type="button"
       class="px-3 py-1"
       [class.bg-blue-600]="activeTab() === 'map'"
+      [class.text-white]="activeTab() === 'map'"
       (click)="setActiveTab('map')"
     >
       Карта
@@ -31,6 +32,7 @@
       type="button"
       class="px-3 py-1"
       [class.bg-blue-600]="activeTab() === 'charts'"
+      [class.text-white]="activeTab() === 'charts'"
       (click)="setActiveTab('charts')"
     >
       Графики
@@ -40,6 +42,7 @@
         type="button"
         class="px-3 py-1"
         [class.bg-blue-600]="activeTab() === 'devices'"
+        [class.text-white]="activeTab() === 'devices'"
         (click)="setActiveTab('devices')"
       >
         Устройства
@@ -50,16 +53,30 @@
   @if (activeTab() === 'map') {
     <button
       type="button"
-      class="hidden sm:inline rounded border border-gray-700 px-3 py-1 hover:bg-gray-700"
+      class="hidden sm:inline rounded border border-gray-300 dark:border-gray-700 px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700"
       [class.bg-blue-600]="heatmapEnabled()"
+      [class.text-white]="heatmapEnabled()"
       (click)="toggleHeatmap()"
     >
       Heatmap
     </button>
   }
 
-  <span class="hidden md:inline text-gray-400">{{ auth.username() }}</span>
-  <button type="button" class="rounded border border-gray-700 px-3 py-1 hover:bg-gray-700" (click)="logout()">
+  <button
+    type="button"
+    class="rounded border border-gray-300 dark:border-gray-700 px-2.5 py-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+    (click)="theme.toggle()"
+    [attr.aria-label]="theme.theme() === 'dark' ? 'Светлая тема' : 'Тёмная тема'"
+  >
+    {{ theme.theme() === 'dark' ? '☀️' : '🌙' }}
+  </button>
+
+  <span class="hidden md:inline text-gray-500 dark:text-gray-400">{{ auth.username() }}</span>
+  <button
+    type="button"
+    class="rounded border border-gray-300 dark:border-gray-700 px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700"
+    (click)="logout()"
+  >
     Выйти
   </button>
 </div>
@@ -71,25 +88,25 @@
   }
 
   <aside
-    class="w-72 flex-shrink-0 overflow-y-auto bg-gray-900 border-r border-gray-800 font-sans
+    class="w-72 flex-shrink-0 overflow-y-auto bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 font-sans
            fixed md:static inset-y-0 left-0 z-[1001] transition-transform md:translate-x-0"
     [class.-translate-x-full]="!mobileSidebarOpen()"
   >
-    <div class="p-3 border-b border-gray-800">
+    <div class="p-3 border-b border-gray-200 dark:border-gray-800">
       <input
         type="search"
-        class="w-full rounded bg-gray-800 text-gray-200 text-sm px-2 py-1.5 border border-gray-700 placeholder:text-gray-500"
+        class="w-full rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm px-2 py-1.5 border border-gray-300 dark:border-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500"
         placeholder="Поиск по имени или id…"
         [value]="searchQuery()"
         (input)="setSearchQuery($any($event.target).value)"
       />
     </div>
 
-    <div class="flex items-center gap-2 p-3 border-b border-gray-800">
-      <label class="text-xs text-gray-400" for="sort-by">Сортировка</label>
+    <div class="flex items-center gap-2 p-3 border-b border-gray-200 dark:border-gray-800">
+      <label class="text-xs text-gray-500 dark:text-gray-400" for="sort-by">Сортировка</label>
       <select
         id="sort-by"
-        class="flex-1 bg-gray-800 text-gray-200 text-sm rounded px-2 py-1 border border-gray-700"
+        class="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 text-sm rounded px-2 py-1 border border-gray-300 dark:border-gray-700"
         [value]="sortBy()"
         (change)="setSortBy($any($event.target).value)"
       >
@@ -100,20 +117,21 @@
     </div>
 
     @if (devices().length === 0) {
-      <div class="p-4 text-sm text-gray-500">Нет устройств</div>
+      <div class="p-4 text-sm text-gray-400 dark:text-gray-500">Нет устройств</div>
     } @else if (groupedDevices().length === 0) {
-      <div class="p-4 text-sm text-gray-500">Ничего не найдено по запросу "{{ searchQuery() }}"</div>
+      <div class="p-4 text-sm text-gray-400 dark:text-gray-500">Ничего не найдено по запросу "{{ searchQuery() }}"</div>
     }
 
     @for (group of groupedDevices(); track group.groupName) {
-      <div class="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+      <div class="px-3 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
         {{ group.groupName }} ({{ group.devices.length }})
       </div>
       @for (device of group.devices; track device.deviceId) {
         <button
           type="button"
-          class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-800"
+          class="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-800"
           [class.bg-blue-600]="selectedDeviceId() === device.deviceId"
+          [class.text-white]="selectedDeviceId() === device.deviceId"
           [class.hover:bg-blue-600]="selectedDeviceId() === device.deviceId"
           (click)="selectDevice(device.deviceId)"
         >
@@ -124,8 +142,8 @@
             [class.bg-gray-500]="device.status === 'OFFLINE'"
           ></span>
           <span class="flex-1 min-w-0">
-            <span class="block truncate text-sm font-medium text-gray-100">{{ device.name }}</span>
-            <span class="block text-xs text-gray-400">
+            <span class="block truncate text-sm font-medium">{{ device.name }}</span>
+            <span class="block text-xs opacity-80">
               {{ device.speedKmh != null ? device.speedKmh.toFixed(1) + ' км/ч' : '—' }}
             </span>
           </span>
@@ -145,10 +163,10 @@
     <div #mapContainer class="absolute inset-0" [class.hidden]="activeTab() !== 'map'"></div>
 
     @if (activeTab() === 'map' && routePoints().length > 1) {
-      <div class="absolute bottom-3 left-3 right-3 z-[900] flex items-center gap-3 rounded-lg bg-gray-800/90 px-3 py-2 text-sm text-gray-200 backdrop-blur">
+      <div class="absolute bottom-3 left-3 right-3 z-[900] flex items-center gap-3 rounded-lg bg-white/90 dark:bg-gray-800/90 px-3 py-2 text-sm text-gray-900 dark:text-gray-200 shadow-lg backdrop-blur">
         <button
           type="button"
-          class="flex-shrink-0 rounded bg-blue-600 px-2.5 py-1"
+          class="flex-shrink-0 rounded bg-blue-600 px-2.5 py-1 text-white"
           (click)="togglePlayback()"
         >
           {{ isPlaying() ? '⏸' : '▶' }}
@@ -161,7 +179,7 @@
           [value]="playbackIndex()"
           (input)="setPlaybackIndex($any($event.target).valueAsNumber)"
         />
-        <span class="w-16 flex-shrink-0 text-right text-xs text-gray-400 tabular-nums">
+        <span class="w-16 flex-shrink-0 text-right text-xs text-gray-500 dark:text-gray-400 tabular-nums">
           {{ playbackTime() }}
         </span>
       </div>
