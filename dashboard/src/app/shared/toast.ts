@@ -1,8 +1,11 @@
 import { Component, computed, signal } from '@angular/core';
 
+type ToastType = 'ok' | 'bad';
+
 interface ToastMessage {
   id: number;
   text: string;
+  type: ToastType;
 }
 
 const AUTO_HIDE_MS = 5000;
@@ -18,9 +21,9 @@ export class Toast {
 
   private nextId = 0;
 
-  show(text: string): void {
+  show(text: string, type: ToastType = 'bad'): void {
     const id = this.nextId++;
-    this.messages.update((list) => [...list, { id, text }]);
+    this.messages.update((list) => [...list, { id, text, type }]);
     setTimeout(() => this.dismiss(id), AUTO_HIDE_MS);
   }
 

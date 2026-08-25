@@ -171,24 +171,32 @@
   <div class="flex-1 min-w-0 relative">
     <div #mapContainer class="absolute inset-0" [class.hidden]="activeTab() !== 'map'"></div>
 
+    @if (activeTab() === 'map' && heatmapEnabled()) {
+      <div class="glass absolute left-3 top-3 z-[900] flex flex-col gap-1.5 rounded-panel p-2.5">
+        <div class="text-[10px] uppercase tracking-wider text-fg-faint">плотность</div>
+        <div class="h-2 w-24 rounded-full" style="background: linear-gradient(90deg, var(--app-bloom-2), var(--accent), var(--warn), var(--bad))"></div>
+        <div class="flex justify-between text-[10px] text-fg-muted"><span>низкая</span><span>высокая</span></div>
+      </div>
+    }
+
     @if (activeTab() === 'map' && routePoints().length > 1) {
-      <div class="absolute bottom-3 left-3 right-3 z-[900] flex items-center gap-3 rounded-lg bg-white/90 dark:bg-gray-800/90 px-3 py-2 text-sm text-gray-900 dark:text-gray-200 shadow-lg backdrop-blur">
+      <div class="glass-2 absolute bottom-4 left-4 right-4 z-[900] flex h-[52px] items-center gap-3 rounded-panel px-3 text-sm">
         <button
           type="button"
-          class="flex-shrink-0 rounded bg-blue-600 px-2.5 py-1 text-white"
+          class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-accent/55 bg-accent-soft text-accent"
           (click)="togglePlayback()"
         >
-          {{ isPlaying() ? '⏸' : '▶' }}
+          {{ isPlaying() ? '❙❙' : '▶' }}
         </button>
         <input
           type="range"
-          class="flex-1"
+          class="h-1 flex-1 accent-accent"
           min="0"
           [max]="routePoints().length - 1"
           [value]="playbackIndex()"
           (input)="setPlaybackIndex($any($event.target).valueAsNumber)"
         />
-        <span class="w-16 flex-shrink-0 text-right text-xs text-gray-500 dark:text-gray-400 tabular-nums">
+        <span class="w-16 flex-shrink-0 text-right text-xs tabular-nums text-fg-faint">
           {{ playbackTime() }}
         </span>
       </div>

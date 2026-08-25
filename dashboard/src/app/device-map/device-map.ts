@@ -156,6 +156,23 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     this.markerClusterGroup = leafletWithPlugins().markerClusterGroup();
     this.markerClusterGroup.addTo(this.map);
 
+    // Кнопки "Маршрут"/"Сравнить" внутри попапа — это сырой innerHTML (не Angular-шаблон),
+    // Leaflet каждый раз создаёт новый DOM попапа при открытии, поэтому один делегирующий
+    // слушатель на карте, без риска накопления обработчиков.
+    this.map.on('popupopen', (e: L.PopupEvent) => {
+      const root = e.popup.getElement();
+      root?.querySelectorAll<HTMLElement>('[data-action]').forEach((el) => {
+        el.addEventListener('click', (ev) => {
+          const deviceId = el.dataset['deviceId']!;
+          if (el.dataset['action'] === 'route') {
+            this.selectDevice(deviceId);
+          } else {
+            this.toggleCompare(deviceId, ev);
+          }
+        });
+      });
+    });
+
     // Push вместо поллинга каждые 5с — один долгоживущий SSE-поток, deviceService сам
     // переподключается при обрыве.
     this.pollSubscription = this.deviceService.streamDevices().subscribe({
@@ -450,7 +467,9 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
       for (const device of allDevices) {
         const prev = this.previousStatuses.get(device.deviceId);
         if ((prev === 'ONLINE' || prev === 'STALE') && device.status === 'OFFLINE') {
-          this.toast?.show(`${device.name} пропало — давно не шлёт данные`);
+          this.toast?.show(`${device.name} ушёл в offline`, 'bad');
+        } else if (prev === 'OFFLINE' && device.status !== 'OFFLINE') {
+          this.toast?.show(`${device.name} снова online`, 'ok');
         }
       }
     }
@@ -461,8 +480,35 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   }
 
   private popupHtml(device: DeviceView): string {
-    const speed = device.speedKmh != null ? `${device.speedKmh.toFixed(1)} км/ч` : '—';
+    const speed = device.speedKmh != null ? device.speedKmh.toFixed(0) : '—';
     const updated = device.recordedAt ? new Date(device.recordedAt).toLocaleTimeString() : '—';
-    return `<strong>${device.name}</strong><br>Скорость: ${speed}<br>Обновлено: ${updated}`;
+    const coords = device.lat != null && device.lon != null ? `${device.lat.toFixed(4)}, ${device.lon.toFixed(4)} · ` : '';
+    const name = escapeHtml(device.name);
+    const id = escapeHtml(device.deviceId);
+    return `
+      <div class="flex w-56 flex-col gap-2 text-sm text-fg">
+        <div class="flex items-center gap-2">
+          <span class="h-[7px] w-[7px] rounded-full ${this.statusDotClass(device.status)}"></span>
+          <span class="font-medium">${name}</span>
+          <span class="ml-auto text-[11px] text-fg-muted">${device.status}</span>
+        </div>
+        <div class="text-lg tabular-nums">${speed} <span class="text-xs text-fg-muted">км/ч</span></div>
+        <div class="text-[11px] tabular-nums text-fg-faint">${coords}${updated}</div>
+        <div class="flex gap-1.5 pt-1">
+          <button type="button" data-action="route" data-device-id="${id}"
+            class="flex-1 rounded-ctl border border-accent/50 py-1.5 text-xs text-accent">Маршрут</button>
+          <button type="button" data-action="compare" data-device-id="${id}"
+            class="flex-1 rounded-ctl border border-line py-1.5 text-xs text-fg-muted">Сравнить</button>
+        </div>
+      </div>
+    `;
   }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
