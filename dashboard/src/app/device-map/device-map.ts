@@ -66,16 +66,25 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   protected readonly sortBy = signal<SortBy>('name');
   protected readonly activeTab = signal<Tab>('map');
   protected readonly mobileSidebarOpen = signal(false);
+  protected readonly searchQuery = signal('');
 
   protected readonly selectedDevice = computed(() =>
     this.devices().find((d) => d.deviceId === this.selectedDeviceId()) ?? null,
   );
 
   // Группировка по groupName, внутри группы — сортировка по выбранному полю. Группы идут
-  // в алфавитном порядке названия — предсказуемее, чем "как пришло с бэкенда".
+  // в алфавитном порядке названия — предсказуемее, чем "как пришло с бэкенда". Поиск фильтрует
+  // до группировки — пустые группы после фильтра просто не появляются в списке.
   protected readonly groupedDevices = computed(() => {
+    const query = this.searchQuery().trim().toLowerCase();
+    const filtered = query
+      ? this.devices().filter(
+          (d) => d.name.toLowerCase().includes(query) || d.deviceId.toLowerCase().includes(query),
+        )
+      : this.devices();
+
     const groups = new Map<string, DeviceView[]>();
-    for (const device of this.devices()) {
+    for (const device of filtered) {
       const list = groups.get(device.groupName) ?? [];
       list.push(device);
       groups.set(device.groupName, list);
@@ -146,6 +155,10 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
 
   protected setSortBy(value: SortBy): void {
     this.sortBy.set(value);
+  }
+
+  protected setSearchQuery(value: string): void {
+    this.searchQuery.set(value);
   }
 
   protected setActiveTab(tab: Tab): void {

@@ -75,6 +75,16 @@
            fixed md:static inset-y-0 left-0 z-[1001] transition-transform md:translate-x-0"
     [class.-translate-x-full]="!mobileSidebarOpen()"
   >
+    <div class="p-3 border-b border-gray-800">
+      <input
+        type="search"
+        class="w-full rounded bg-gray-800 text-gray-200 text-sm px-2 py-1.5 border border-gray-700 placeholder:text-gray-500"
+        placeholder="Поиск по имени или id…"
+        [value]="searchQuery()"
+        (input)="setSearchQuery($any($event.target).value)"
+      />
+    </div>
+
     <div class="flex items-center gap-2 p-3 border-b border-gray-800">
       <label class="text-xs text-gray-400" for="sort-by">Сортировка</label>
       <select
@@ -91,6 +101,8 @@
 
     @if (devices().length === 0) {
       <div class="p-4 text-sm text-gray-500">Нет устройств</div>
+    } @else if (groupedDevices().length === 0) {
+      <div class="p-4 text-sm text-gray-500">Ничего не найдено по запросу "{{ searchQuery() }}"</div>
     }
 
     @for (group of groupedDevices(); track group.groupName) {
