@@ -1,25 +1,18 @@
 import { DatePipe } from '@angular/common';
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { ChartConfiguration, ChartData } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
 import { DeviceEvent } from '../models/device-event';
 import { DeviceView } from '../models/device-view';
 import { FleetActivityPoint } from '../models/fleet-activity-point';
 import { RoutePoint } from '../models/route-point';
-
-const STATUS_COLORS: Record<string, string> = {
-  ONLINE: '#22c55e',
-  STALE: '#eab308',
-  OFFLINE: '#6b7280',
-};
+import { ThemeService } from '../services/theme.service';
 
 const STATUS_LABELS: Record<string, string> = {
   ONLINE: 'Online',
   STALE: 'Задерживаются',
   OFFLINE: 'Offline',
 };
-
-const COMPARE_COLORS = ['#2563eb', '#f97316', '#a855f7', '#14b8a6', '#ec4899', '#84cc16'];
 
 // Пауза между соседними точками истории дольше этого порога считается простоем при подсчёте
 // аптайма — то же значение, что STALE_THRESHOLD на бэке (query-service DeviceQueryService).
@@ -43,6 +36,10 @@ function haversineKm(a: RoutePoint, b: RoutePoint): number {
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
+function cssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 @Component({
   imports: [BaseChartDirective, DatePipe],
   selector: 'app-fleet-chart',
@@ -57,42 +54,80 @@ export class FleetChart {
   readonly activityPoints = input<FleetActivityPoint[]>([]);
   readonly events = input<DeviceEvent[]>([]);
 
+  private readonly theme = inject(ThemeService);
+
+  // Цвета читаются из тех же CSS-переменных, что и Tailwind-токены в шаблонах — при смене темы
+  // graphs пересчитываются вместе с остальным UI, а не остаются на зашитых hex.
+  protected readonly chartTheme = computed(() => {
+    this.theme.theme();
+    return {
+      text: cssVar('--fg-muted'),
+      grid: cssVar('--line'),
+      accent: cssVar('--accent'),
+      ok: cssVar('--ok'),
+      warn: cssVar('--warn'),
+      off: cssVar('--off'),
+      bad: cssVar('--bad'),
+    };
+  });
+
+  private readonly statusColors = computed(() => ({
+    ONLINE: this.chartTheme().ok,
+    STALE: this.chartTheme().warn,
+    OFFLINE: this.chartTheme().off,
+  }));
+
+  private readonly compareColors = computed(() => {
+    const t = this.chartTheme();
+    return [t.accent, t.ok, t.warn, t.bad];
+  });
+
   // Данные обновляются каждые 5с (общий poll в device-map.ts) — анимация на каждое обновление
   // выглядит как моргание графика, а не полезная информация, поэтому везде выключена.
-  protected readonly statusChartOptions: ChartConfiguration<'doughnut'>['options'] = {
+  protected readonly statusChartOptions = computed<ChartConfiguration<'doughnut'>['options']>(() => ({
     animation: false,
-    plugins: { legend: { position: 'bottom', labels: { color: '#6b7280' } } },
-  };
+    plugins: { legend: { position: 'bottom', labels: { color: this.chartTheme().text } } },
+  }));
 
-  protected readonly speedChartOptions: ChartConfiguration<'line'>['options'] = {
+  protected readonly speedChartOptions = computed<ChartConfiguration<'line'>['options']>(() => ({
     animation: false,
     scales: {
-      x: { ticks: { color: '#6b7280' } },
-      y: { ticks: { color: '#6b7280' }, title: { display: true, text: 'км/ч', color: '#6b7280' } },
+      x: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid } },
+      y: {
+        ticks: { color: this.chartTheme().text },
+        grid: { color: this.chartTheme().grid },
+        title: { display: true, text: 'км/ч', color: this.chartTheme().text },
+      },
     },
-    plugins: { legend: { display: true, labels: { color: '#6b7280' } } },
-  };
+    plugins: { legend: { display: true, labels: { color: this.chartTheme().text } } },
+  }));
 
-  protected readonly barChartOptions: ChartConfiguration<'bar'>['options'] = {
+  protected readonly barChartOptions = computed<ChartConfiguration<'bar'>['options']>(() => ({
     animation: false,
     scales: {
-      x: { ticks: { color: '#6b7280' }, stacked: true },
-      y: { ticks: { color: '#6b7280' }, stacked: true },
+      x: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid }, stacked: true },
+      y: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid }, stacked: true },
     },
-    plugins: { legend: { position: 'bottom', labels: { color: '#6b7280' } } },
-  };
+    plugins: { legend: { position: 'bottom', labels: { color: this.chartTheme().text } } },
+  }));
 
-  protected readonly histogramOptions: ChartConfiguration<'bar'>['options'] = {
+  protected readonly histogramOptions = computed<ChartConfiguration<'bar'>['options']>(() => ({
     animation: false,
-    scales: { x: { ticks: { color: '#6b7280' } }, y: { ticks: { color: '#6b7280' } } },
+    scales: {
+      x: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid } },
+      y: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid } },
+    },
     plugins: { legend: { display: false } },
-  };
+  }));
 
-  protected readonly activityChartOptions: ChartConfiguration<'line'>['options'] = {
+  protected readonly activityChartOptions = computed<ChartConfiguration<'line'>['options']>(() => ({
     animation: false,
-    scales: { x: { ticks: { color: '#6b7280' } }, y: { ticks: { color: '#6b7280' } } },
+    scales: {
+      x: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid } },
+      y: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid } },
+    },
     plugins: { legend: { display: false } },
-  };
+  }));
 
   protected readonly statusChartData = computed<ChartData<'doughnut'>>(() => {
     const counts: Record<string, number> = { ONLINE: 0, STALE: 0, OFFLINE: 0 };
@@ -100,22 +135,24 @@ export class FleetChart {
       counts[device.status] = (counts[device.status] ?? 0) + 1;
     }
     const statuses = Object.keys(counts).filter((status) => counts[status] > 0);
+    const colors = this.statusColors() as Record<string, string>;
     return {
       labels: statuses.map((status) => STATUS_LABELS[status]),
-      datasets: [{ data: statuses.map((status) => counts[status]), backgroundColor: statuses.map((status) => STATUS_COLORS[status]) }],
+      datasets: [{ data: statuses.map((status) => counts[status]), backgroundColor: statuses.map((status) => colors[status]) }],
     };
   });
 
   protected readonly speedChartData = computed<ChartData<'line'>>(() => {
     const datasets: ChartData<'line'>['datasets'] = [];
     const labelOf = (id: string) => this.devices().find((d) => d.deviceId === id)?.name ?? id;
+    const colors = this.compareColors();
 
     if (this.routePoints().length > 0) {
       datasets.push({
         data: this.routePoints().map((point) => point.speedKmh ?? 0),
         label: this.selectedDeviceName() ?? 'Выбранное устройство',
-        borderColor: COMPARE_COLORS[0],
-        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+        borderColor: colors[0],
+        backgroundColor: colors[0],
         fill: false,
         tension: 0.3,
       });
@@ -126,7 +163,7 @@ export class FleetChart {
       datasets.push({
         data: points.map((point) => point.speedKmh ?? 0),
         label: labelOf(deviceId),
-        borderColor: COMPARE_COLORS[colorIndex % COMPARE_COLORS.length],
+        borderColor: colors[colorIndex % colors.length],
         fill: false,
         tension: 0.3,
       });
@@ -202,7 +239,7 @@ export class FleetChart {
     }
     return {
       labels: SPEED_BUCKETS.map(([label]) => label + ' км/ч'),
-      datasets: [{ data: counts, label: 'Устройств', backgroundColor: '#2563eb' }],
+      datasets: [{ data: counts, label: 'Устройств', backgroundColor: this.chartTheme().accent }],
     };
   });
 
@@ -215,12 +252,13 @@ export class FleetChart {
     }
     const groupNames = [...groups.keys()].sort((a, b) => a.localeCompare(b));
     const statuses: Array<keyof typeof STATUS_LABELS> = ['ONLINE', 'STALE', 'OFFLINE'];
+    const colors = this.statusColors() as Record<string, string>;
     return {
       labels: groupNames,
       datasets: statuses.map((status) => ({
         data: groupNames.map((name) => groups.get(name)![status]),
         label: STATUS_LABELS[status],
-        backgroundColor: STATUS_COLORS[status],
+        backgroundColor: colors[status],
       })),
     };
   });
@@ -231,8 +269,8 @@ export class FleetChart {
       {
         data: this.activityPoints().map((p) => p.count),
         label: 'Сообщений/мин',
-        borderColor: '#22c55e',
-        backgroundColor: 'rgba(34, 197, 94, 0.15)',
+        borderColor: this.chartTheme().accent,
+        backgroundColor: `color-mix(in oklab, ${this.chartTheme().accent} 18%, transparent)`,
         fill: true,
         tension: 0.2,
       },
