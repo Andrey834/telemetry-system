@@ -34,8 +34,13 @@
                 "output": "assets/leaflet"
               }
             ],
-            "styles": ["node_modules/leaflet/dist/leaflet.css", "src/styles.css"],
-            "allowedCommonJsDependencies": ["leaflet", "leaflet.heat"]
+            "styles": [
+              "node_modules/leaflet/dist/leaflet.css",
+              "node_modules/leaflet.markercluster/dist/MarkerCluster.css",
+              "node_modules/leaflet.markercluster/dist/MarkerCluster.Default.css",
+              "src/styles.css"
+            ],
+            "allowedCommonJsDependencies": ["leaflet", "leaflet.heat", "leaflet.markercluster"]
           },
           "configurations": {
             "production": {

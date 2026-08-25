@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import * as L from 'leaflet';
 import 'leaflet.heat';
+import 'leaflet.markercluster';
 import { Router } from '@angular/router';
 import { Subscription, interval, startWith, switchMap } from 'rxjs';
 import { DeviceService } from '../services/device.service';
@@ -93,6 +94,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   // Обновляем позиции существующих маркеров, а не пересоздаём слой на каждый poll —
   // так у маркера не "мигает" state между тиками опроса.
   private readonly markers = new Map<string, L.Marker>();
+  private markerClusterGroup?: L.MarkerClusterGroup;
   private routeLine?: L.Polyline;
   private heatLayer?: L.HeatLayer;
   private pollSubscription?: Subscription;
@@ -110,6 +112,11 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
       attribution: '&copy; OpenStreetMap contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       maxZoom: 19,
     }).addTo(this.map);
+
+    // Кластеризация — на большом парке (200+ устройств, как в нагрузочном тесте) отдельные маркеры
+    // превращаются в кашу из точек, кластер-группа схлопывает их до раскрытия при зуме.
+    this.markerClusterGroup = L.markerClusterGroup();
+    this.markerClusterGroup.addTo(this.map);
 
     this.pollSubscription = interval(POLL_INTERVAL_MS)
       .pipe(startWith(0), switchMap(() => this.deviceService.getAll()))
@@ -152,9 +159,11 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     this.mobileSidebarOpen.set(false);
 
     const marker = this.markers.get(deviceId);
-    if (marker && this.map) {
+    if (marker && this.map && this.markerClusterGroup) {
       this.map.flyTo(marker.getLatLng(), Math.max(this.map.getZoom(), 15));
-      marker.openPopup();
+      // Маркер может быть внутри свёрнутого кластера — zoomToShowLayer зумит до его появления
+      // индивидуально и только тогда открывает попап (marker.openPopup() сразу не сработал бы).
+      this.markerClusterGroup.zoomToShowLayer(marker, () => marker.openPopup());
     }
 
     this.deviceService.getHistory(deviceId).subscribe({
@@ -260,7 +269,8 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
       if (existing) {
         existing.setLatLng(position).setPopupContent(this.popupHtml(device));
       } else {
-        const marker = L.marker(position).bindPopup(this.popupHtml(device)).addTo(this.map!);
+        const marker = L.marker(position).bindPopup(this.popupHtml(device));
+        this.markerClusterGroup!.addLayer(marker);
         this.markers.set(device.deviceId, marker);
       }
     }
@@ -268,7 +278,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     // Устройство пропало из ответа query-service (TTL/рестарт) — убираем маркер с карты.
     for (const [deviceId, marker] of this.markers) {
       if (!seen.has(deviceId)) {
-        marker.remove();
+        this.markerClusterGroup!.removeLayer(marker);
         this.markers.delete(deviceId);
         if (this.selectedDeviceId() === deviceId) {
           this.selectedDeviceId.set(null);
