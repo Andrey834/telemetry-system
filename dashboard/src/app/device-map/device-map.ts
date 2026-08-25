@@ -23,6 +23,7 @@ import { DeviceAdmin } from './device-admin';
 import { Toast } from '../shared/toast';
 
 const POLL_INTERVAL_MS = 5000;
+const MARKER_ANIMATION_MS = 1500;
 const DEFAULT_CENTER: L.LatLngExpression = [55.751244, 37.618423]; // Москва — стартовый вид карты
 
 type SortBy = 'name' | 'speed' | 'status';
@@ -95,6 +96,10 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   // так у маркера не "мигает" state между тиками опроса.
   private readonly markers = new Map<string, L.Marker>();
   private markerClusterGroup?: L.MarkerClusterGroup;
+  // Плавное движение маркера между обновлениями вместо мгновенного "прыжка" — id текущего
+  // requestAnimationFrame на устройство, чтобы отменить недоигранную анимацию, если новые данные
+  // пришли раньше, чем предыдущая успела доиграть.
+  private readonly markerAnimations = new Map<string, number>();
   private routeLine?: L.Polyline;
   private heatLayer?: L.HeatLayer;
   private pollSubscription?: Subscription;
@@ -128,6 +133,9 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.pollSubscription?.unsubscribe();
+    for (const frame of this.markerAnimations.values()) {
+      cancelAnimationFrame(frame);
+    }
     this.map?.remove();
   }
 
@@ -225,6 +233,41 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Плавно двигает маркер к новой позиции вместо мгновенного "прыжка" — так
+   * устройство выглядит едущим, а не телепортирующимся на каждое обновление. */
+  private animateMarkerTo(deviceId: string, marker: L.Marker, to: L.LatLngExpression): void {
+    const previousFrame = this.markerAnimations.get(deviceId);
+    if (previousFrame != null) {
+      cancelAnimationFrame(previousFrame);
+    }
+
+    const from = marker.getLatLng();
+    const target = L.latLng(to);
+    const start = performance.now();
+
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / MARKER_ANIMATION_MS);
+      marker.setLatLng([
+        from.lat + (target.lat - from.lat) * t,
+        from.lng + (target.lng - from.lng) * t,
+      ]);
+      if (t < 1) {
+        this.markerAnimations.set(deviceId, requestAnimationFrame(step));
+      } else {
+        this.markerAnimations.delete(deviceId);
+      }
+    };
+    this.markerAnimations.set(deviceId, requestAnimationFrame(step));
+  }
+
+  private stopMarkerAnimation(deviceId: string): void {
+    const frame = this.markerAnimations.get(deviceId);
+    if (frame != null) {
+      cancelAnimationFrame(frame);
+      this.markerAnimations.delete(deviceId);
+    }
+  }
+
   private drawRoute(points: RoutePoint[]): void {
     this.routeLine?.remove();
     if (!this.map || points.length < 2) {
@@ -267,7 +310,8 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
       const existing = this.markers.get(device.deviceId);
 
       if (existing) {
-        existing.setLatLng(position).setPopupContent(this.popupHtml(device));
+        this.animateMarkerTo(device.deviceId, existing, position);
+        existing.setPopupContent(this.popupHtml(device));
       } else {
         const marker = L.marker(position).bindPopup(this.popupHtml(device));
         this.markerClusterGroup!.addLayer(marker);
@@ -278,6 +322,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     // Устройство пропало из ответа query-service (TTL/рестарт) — убираем маркер с карты.
     for (const [deviceId, marker] of this.markers) {
       if (!seen.has(deviceId)) {
+        this.stopMarkerAnimation(deviceId);
         this.markerClusterGroup!.removeLayer(marker);
         this.markers.delete(deviceId);
         if (this.selectedDeviceId() === deviceId) {
