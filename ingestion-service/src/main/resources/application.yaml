@@ -37,6 +37,9 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}   # чтобы в Prometheus/Grafana можно было фильтровать по сервису
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true   # без этого Micrometer не экспортирует _bucket-серии для histogram_quantile()
 
 logging:
   level:

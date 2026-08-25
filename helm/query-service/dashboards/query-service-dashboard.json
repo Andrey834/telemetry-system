@@ -66,7 +66,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "targets": [
         {
-          "expr": "count(up{application=\"query-service\"} == 1)"
+          "expr": "count(kube_pod_status_ready{namespace=\"telemetry-system\", condition=\"true\", pod=~\"^query-service-.*\"})"
         }
       ]
     }
