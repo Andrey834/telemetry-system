@@ -12,14 +12,20 @@ import org.springframework.data.redis.core.ReactiveValueOperations;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
+import ru.telemetry.query.model.Device;
+import ru.telemetry.query.model.DeviceStatus;
+import ru.telemetry.query.model.HistoryRow;
 import ru.telemetry.query.model.TelemetryState;
 import ru.telemetry.query.repository.DeviceRepository;
 import ru.telemetry.query.repository.TelemetryHistoryRepository;
 
+import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
@@ -93,6 +99,87 @@ class DeviceQueryServiceTest {
 
         StepVerifier.create(service.findAll())
                 .expectNext(busOne)
+                .verifyComplete();
+    }
+
+    @Test
+    void findAllWithStatus_recentDevice_isOnline() {
+        Device device = new Device("bus-1", "Автобус 1", "buses");
+        TelemetryState state = new TelemetryState("bus-1", 1L, 10.0, 20.0, 30.0, Instant.now());
+        given(deviceRepository.findAll()).willReturn(Flux.just(device));
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.multiGet(List.of("telemetry:state:bus-1"))).willReturn(Mono.just(List.of(state)));
+
+        StepVerifier.create(service.findAllWithStatus())
+                .assertNext(view -> {
+                    assertThat(view.status()).isEqualTo(DeviceStatus.ONLINE);
+                    assertThat(view.name()).isEqualTo("Автобус 1");
+                    assertThat(view.groupName()).isEqualTo("buses");
+                    assertThat(view.lat()).isEqualTo(10.0);
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void findAllWithStatus_oldButRecentEnough_isStale() {
+        Device device = new Device("bus-1", "Автобус 1", "buses");
+        TelemetryState state = new TelemetryState("bus-1", 1L, 10.0, 20.0, 30.0,
+                Instant.now().minus(Duration.ofMinutes(2)));
+        given(deviceRepository.findAll()).willReturn(Flux.just(device));
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.multiGet(List.of("telemetry:state:bus-1"))).willReturn(Mono.just(List.of(state)));
+
+        StepVerifier.create(service.findAllWithStatus())
+                .assertNext(view -> assertThat(view.status()).isEqualTo(DeviceStatus.STALE))
+                .verifyComplete();
+    }
+
+    @Test
+    void findAllWithStatus_veryOld_isOffline() {
+        Device device = new Device("bus-1", "Автобус 1", "buses");
+        TelemetryState state = new TelemetryState("bus-1", 1L, 10.0, 20.0, 30.0,
+                Instant.now().minus(Duration.ofHours(1)));
+        given(deviceRepository.findAll()).willReturn(Flux.just(device));
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.multiGet(List.of("telemetry:state:bus-1"))).willReturn(Mono.just(List.of(state)));
+
+        StepVerifier.create(service.findAllWithStatus())
+                .assertNext(view -> assertThat(view.status()).isEqualTo(DeviceStatus.OFFLINE))
+                .verifyComplete();
+    }
+
+    @Test
+    void findAllWithStatus_neverReported_isOfflineWithNullCoordinates() {
+        Device device = new Device("bus-1", "Автобус 1", "buses");
+        given(deviceRepository.findAll()).willReturn(Flux.just(device));
+        // Устройство есть в реестре, но ни разу не присылало данные — findByDeviceIds попадает
+        // на ветку с непустым списком ключей, Redis отдаёт пустой результат (не null-элемент).
+        given(redisTemplate.opsForValue()).willReturn(valueOperations);
+        given(valueOperations.multiGet(List.of("telemetry:state:bus-1")))
+                .willReturn(Mono.just(Arrays.asList((TelemetryState) null)));
+
+        StepVerifier.create(service.findAllWithStatus())
+                .assertNext(view -> {
+                    assertThat(view.status()).isEqualTo(DeviceStatus.OFFLINE);
+                    assertThat(view.lat()).isNull();
+                    assertThat(view.recordedAt()).isNull();
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void findHistory_returnsPointsOldestFirst() {
+        Instant older = Instant.now().minusSeconds(60);
+        Instant newer = Instant.now();
+        // Репозиторий уже отдаёт DESC (новые первыми) — сервис должен развернуть в хронологический порядок.
+        given(historyRepository.findByDeviceId("bus-1", 10)).willReturn(Flux.just(
+                new HistoryRow(2L, "bus-1", BigDecimal.valueOf(11.0), BigDecimal.valueOf(21.0), BigDecimal.valueOf(50.0), newer),
+                new HistoryRow(1L, "bus-1", BigDecimal.valueOf(10.0), BigDecimal.valueOf(20.0), BigDecimal.valueOf(30.0), older)
+        ));
+
+        StepVerifier.create(service.findHistory("bus-1", 10))
+                .assertNext(point -> assertThat(point.recordedAt()).isEqualTo(older))
+                .assertNext(point -> assertThat(point.recordedAt()).isEqualTo(newer))
                 .verifyComplete();
     }
 }
