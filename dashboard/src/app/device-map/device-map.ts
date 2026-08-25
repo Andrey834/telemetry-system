@@ -9,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import * as L from 'leaflet';
+import './leaflet-global';
 import 'leaflet.heat';
 import 'leaflet.markercluster';
 import { Router } from '@angular/router';
