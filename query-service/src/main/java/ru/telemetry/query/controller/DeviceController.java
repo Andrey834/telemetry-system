@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import ru.telemetry.query.model.DeviceView;
+import ru.telemetry.query.model.RoutePoint;
 import ru.telemetry.query.model.TelemetryState;
 import ru.telemetry.query.service.DeviceQueryService;
 
@@ -30,8 +32,15 @@ public class DeviceController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
+    /** Весь реестр устройств (Postgres) + текущее состояние/статус (Redis), не только "кто жив". */
     @GetMapping
-    public Flux<TelemetryState> getDevices(@RequestParam(required = false) List<String> ids) {
-        return ids == null ? queryService.findAll() : queryService.findByDeviceIds(ids);
+    public Flux<DeviceView> getDevices(@RequestParam(required = false) List<String> ids) {
+        return ids == null ? queryService.findAllWithStatus() : queryService.findAllWithStatus(ids);
+    }
+
+    @GetMapping("/{deviceId}/history")
+    public Flux<RoutePoint> getHistory(@PathVariable String deviceId,
+                                        @RequestParam(defaultValue = "200") int limit) {
+        return queryService.findHistory(deviceId, limit);
     }
 }

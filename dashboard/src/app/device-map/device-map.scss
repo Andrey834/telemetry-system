@@ -6,6 +6,7 @@
 
 .toolbar {
   display: flex;
+  align-items: center;
   gap: 1rem;
   padding: 0.5rem 1rem;
   font-family: system-ui, sans-serif;
@@ -15,6 +16,28 @@
 
   .error {
     color: #f87171;
+  }
+
+  .spacer {
+    flex: 1;
+  }
+
+  .username {
+    color: #9ca3af;
+  }
+
+  .logout {
+    padding: 0.25rem 0.75rem;
+    border: 1px solid #374151;
+    border-radius: 4px;
+    background: transparent;
+    color: #e5e7eb;
+    font: inherit;
+    cursor: pointer;
+
+    &:hover {
+      background: #374151;
+    }
   }
 }
 

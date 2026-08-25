@@ -5,8 +5,16 @@ import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import ru.telemetry.query.model.Device;
+import ru.telemetry.query.model.DeviceStatus;
+import ru.telemetry.query.model.DeviceView;
+import ru.telemetry.query.model.RoutePoint;
 import ru.telemetry.query.model.TelemetryState;
+import ru.telemetry.query.repository.DeviceRepository;
+import ru.telemetry.query.repository.TelemetryHistoryRepository;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 
@@ -18,13 +26,25 @@ public class DeviceQueryService {
     // отсюда findAll() узнаёт, какие устройства вообще существуют, без SCAN по всему Redis.
     private static final String DEVICE_SET_KEY = "telemetry:devices";
 
+    // Пороги статуса — устройство считается online, пока шлёт данные заметно чаще, чем раз в
+    // 30с (dashboard опрашивает раз в 5с), stale — задержалось, но ещё может вернуться,
+    // offline — молчит достаточно долго, чтобы считать связь потерянной.
+    private static final Duration ONLINE_THRESHOLD = Duration.ofSeconds(30);
+    private static final Duration STALE_THRESHOLD = Duration.ofMinutes(5);
+
     private final ReactiveRedisTemplate<String, TelemetryState> redisTemplate;
     private final ReactiveStringRedisTemplate stringRedisTemplate;
+    private final DeviceRepository deviceRepository;
+    private final TelemetryHistoryRepository historyRepository;
 
     public DeviceQueryService(ReactiveRedisTemplate<String, TelemetryState> redisTemplate,
-                               ReactiveStringRedisTemplate stringRedisTemplate) {
+                               ReactiveStringRedisTemplate stringRedisTemplate,
+                               DeviceRepository deviceRepository,
+                               TelemetryHistoryRepository historyRepository) {
         this.redisTemplate = redisTemplate;
         this.stringRedisTemplate = stringRedisTemplate;
+        this.deviceRepository = deviceRepository;
+        this.historyRepository = historyRepository;
     }
 
     public Mono<TelemetryState> findByDeviceId(String deviceId) {
@@ -49,5 +69,54 @@ public class DeviceQueryService {
         return stringRedisTemplate.opsForSet().members(DEVICE_SET_KEY)
                 .collectList()
                 .flatMapMany(this::findByDeviceIds);
+    }
+
+    /** Все устройства из реестра (Postgres), обогащённые текущим состоянием из Redis и статусом. */
+    public Flux<DeviceView> findAllWithStatus() {
+        return buildViews(deviceRepository.findAll());
+    }
+
+    public Flux<DeviceView> findAllWithStatus(List<String> deviceIds) {
+        return buildViews(deviceRepository.findAllById(deviceIds));
+    }
+
+    private Flux<DeviceView> buildViews(Flux<Device> devices) {
+        return devices.collectList()
+                .flatMapMany(list -> {
+                    List<String> ids = list.stream().map(Device::deviceId).toList();
+                    return findByDeviceIds(ids)
+                            .collectMap(TelemetryState::deviceId)
+                            .flatMapMany(stateByDeviceId -> Flux.fromIterable(list)
+                                    .map(device -> toView(device, stateByDeviceId.get(device.deviceId()))));
+                });
+    }
+
+    private DeviceView toView(Device device, TelemetryState state) {
+        if (state == null) {
+            return new DeviceView(device.deviceId(), device.name(), device.groupName(),
+                    DeviceStatus.OFFLINE, null, null, null, null);
+        }
+        return new DeviceView(device.deviceId(), device.name(), device.groupName(),
+                statusOf(state.recordedAt()), state.lat(), state.lon(), state.speedKmh(), state.recordedAt());
+    }
+
+    private DeviceStatus statusOf(Instant recordedAt) {
+        Duration age = Duration.between(recordedAt, Instant.now());
+        if (age.compareTo(ONLINE_THRESHOLD) <= 0) {
+            return DeviceStatus.ONLINE;
+        }
+        return age.compareTo(STALE_THRESHOLD) <= 0 ? DeviceStatus.STALE : DeviceStatus.OFFLINE;
+    }
+
+    /** Маршрут устройства за последние записи истории (Postgres read-реплика), от старых к новым. */
+    public Flux<RoutePoint> findHistory(String deviceId, int limit) {
+        return historyRepository.findByDeviceId(deviceId, limit)
+                .map(row -> new RoutePoint(
+                        row.lat().doubleValue(),
+                        row.lon().doubleValue(),
+                        row.speedKmh() != null ? row.speedKmh().doubleValue() : null,
+                        row.recordedAt()))
+                .collectSortedList((a, b) -> a.recordedAt().compareTo(b.recordedAt()))
+                .flatMapMany(Flux::fromIterable);
     }
 }

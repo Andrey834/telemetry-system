@@ -22,8 +22,8 @@ prometheus_workspace_id = "monXXXXXXXXXXXXXXXXX"
 enable_cert_manager = false
 letsencrypt_email   = "REPLACE_ME@example.com"
 
-dashboard_basic_auth_user     = "admin"
-dashboard_basic_auth_password = "REPLACE_ME"
+# Сгенерируйте один раз: openssl rand -base64 48
+jwt_secret = "REPLACE_ME"
 
 dashboard_host         = "dashboard.example.com"
 query_service_host     = "query.example.com"

@@ -47,14 +47,8 @@ variable "letsencrypt_email" {
   default     = null
 }
 
-variable "dashboard_basic_auth_user" {
-  description = "Логин Basic Auth для публичного dashboard"
-  type        = string
-  default     = null
-}
-
-variable "dashboard_basic_auth_password" {
-  description = "Пароль Basic Auth для публичного dashboard"
+variable "jwt_secret" {
+  description = "Секрет подписи JWT (query-service /auth/login) — сгенерируйте один раз, например: openssl rand -base64 48"
   type        = string
   sensitive   = true
   default     = null
@@ -108,4 +102,10 @@ variable "regru_key_path" {
   type        = string
   sensitive   = true
   default     = null
+}
+
+variable "image_tag" {
+  description = "Тег образов сервисов — deploy-yandex.sh подставляет git-хэш коммита при каждом деплое, чтобы был реальный откат на предыдущую версию, а не постоянно перезаписываемый '0.0.1'"
+  type        = string
+  default     = "0.0.1"
 }

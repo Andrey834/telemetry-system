@@ -23,6 +23,15 @@ resource "yandex_mdb_postgresql_cluster" "this" {
     zone      = var.default_zone
     subnet_id = module.network.subnet_id
   }
+
+  # Второй host в том же кластере — Yandex сам поднимает потоковую репликацию и назначает
+  # роль (MASTER/REPLICA, атрибут host[].role вычисляется сервером, руками не задаётся).
+  # query-service/ingestion-service читают отсюда (см. output postgres_replica_host),
+  # telemetry-processor продолжает писать в primary — не мешаем друг другу под нагрузкой.
+  host {
+    zone      = var.default_zone
+    subnet_id = module.network.subnet_id
+  }
 }
 
 resource "yandex_mdb_postgresql_user" "telemetry" {
@@ -37,11 +46,6 @@ resource "yandex_mdb_postgresql_database" "telemetry" {
   owner      = yandex_mdb_postgresql_user.telemetry.name
 }
 
-# Yandex Cloud больше не создаёт новые кластеры "Managed Redis" как отдельный сервис — консоль
-# показывает только "Managed Service for Valkey" (форк Redis). Terraform-ресурс называется
-# yandex_mdb_redis_cluster_v2 (для обратной совместимости имени), но subcategory в его же
-# документации — "Managed Service for ValKey"; версия указывается с суффиксом "-valkey".
-# Порт фиксирован — 6379, TLS не включаем (tls_enabled по умолчанию false, как и у Timeweb).
 resource "yandex_mdb_redis_cluster_v2" "this" {
   name        = "${var.cluster_name}-redis"
   environment = "PRODUCTION"
@@ -98,7 +102,6 @@ resource "yandex_mdb_kafka_topic" "telemetry_raw" {
   replication_factor = 1
 }
 
-# Инлайновый user {} внутри yandex_mdb_kafka_cluster устарел — провайдер требует отдельный ресурс.
 resource "yandex_mdb_kafka_user" "telemetry" {
   cluster_id = yandex_mdb_kafka_cluster.this.id
   name       = "telemetry"

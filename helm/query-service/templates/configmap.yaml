@@ -9,3 +9,8 @@ data:
   REDIS_PORT: {{ .Values.env.redisPort | quote }}
   QUERY_PORT: {{ .Values.env.queryPort | quote }}
   CORS_ALLOWED_ORIGINS: {{ .Values.env.corsAllowedOrigins | quote }}
+  DB_REPLICA_HOST: {{ .Values.env.dbReplicaHost | quote }}
+  DB_PORT: {{ .Values.env.dbPort | quote }}
+  DB_NAME: {{ .Values.env.dbName | quote }}
+  DB_USER: {{ .Values.env.dbUser | quote }}
+  DB_SSL_MODE: {{ .Values.env.dbSslMode | quote }}

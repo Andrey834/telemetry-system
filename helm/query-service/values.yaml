@@ -37,10 +37,14 @@ env:
   # Домен дашборда (Angular), которому разрешён CORS-доступ к этому API — замените на реальный
   # после первого деплоя dashboard (см. helm/dashboard/values.yaml ingress.host).
   corsAllowedOrigins: "https://dashboard.telemetry.example.com"
+  dbReplicaHost: "postgres-replica"
+  dbPort: "5432"
+  dbName: "telemetry"
+  dbUser: "telemetry"
+  dbSslMode: "disable"
 
-# REDIS_PASSWORD — создаётся вручную в кластере, не хранится в git:
-#   kubectl -n telemetry-system create secret generic query-service-credentials \
-#     --from-literal=REDIS_PASSWORD='...'
+# REDIS_PASSWORD/DB_PASSWORD/JWT_SECRET — управляются Terraform'ом (terraform/platform/argocd_apps.tf),
+# не хранятся в git.
 credentialsSecretName: query-service-credentials
 
 ingress:
@@ -53,9 +57,11 @@ ingress:
 probes:
   liveness:
     path: /actuator/health/liveness
-    initialDelaySeconds: 15
+    initialDelaySeconds: 30
     periodSeconds: 10
+    failureThreshold: 6
   readiness:
     path: /actuator/health/readiness
-    initialDelaySeconds: 10
+    initialDelaySeconds: 20
     periodSeconds: 5
+    failureThreshold: 6

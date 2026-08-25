@@ -10,3 +10,8 @@ data:
   KAFKA_USERNAME: {{ .Values.env.kafkaUsername | quote }}
   TELEMETRY_TOPIC: {{ .Values.env.telemetryTopic | quote }}
   INGESTION_PORT: {{ .Values.env.ingestionPort | quote }}
+  DB_REPLICA_HOST: {{ .Values.env.dbReplicaHost | quote }}
+  DB_PORT: {{ .Values.env.dbPort | quote }}
+  DB_NAME: {{ .Values.env.dbName | quote }}
+  DB_USER: {{ .Values.env.dbUser | quote }}
+  DB_SSL_MODE: {{ .Values.env.dbSslMode | quote }}

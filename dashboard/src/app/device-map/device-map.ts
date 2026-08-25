@@ -8,9 +8,11 @@ import {
   signal,
 } from '@angular/core';
 import * as L from 'leaflet';
+import { Router } from '@angular/router';
 import { Subscription, interval, startWith, switchMap } from 'rxjs';
 import { DeviceService } from '../services/device.service';
-import { TelemetryState } from '../models/telemetry-state';
+import { AuthService } from '../services/auth.service';
+import { DeviceView } from '../models/device-view';
 
 const POLL_INTERVAL_MS = 5000;
 const DEFAULT_CENTER: L.LatLngExpression = [55.751244, 37.618423]; // Москва — стартовый вид карты
@@ -36,10 +38,12 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   protected readonly deviceCount = signal(0);
   protected readonly lastUpdated = signal<Date | null>(null);
   protected readonly error = signal<string | null>(null);
-  protected readonly devices = signal<TelemetryState[]>([]);
+  protected readonly devices = signal<DeviceView[]>([]);
   protected readonly selectedDeviceId = signal<string | null>(null);
 
   private readonly deviceService = inject(DeviceService);
+  protected readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
 
   private map?: L.Map;
   // Обновляем позиции существующих маркеров, а не пересоздаём слой на каждый poll —
@@ -67,6 +71,11 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     this.map?.remove();
   }
 
+  protected logout(): void {
+    this.auth.logout();
+    this.router.navigateByUrl('/login');
+  }
+
   protected selectDevice(deviceId: string): void {
     const marker = this.markers.get(deviceId);
     if (!marker || !this.map) {
@@ -77,24 +86,28 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     marker.openPopup();
   }
 
-  private render(states: TelemetryState[]): void {
+  private render(allDevices: DeviceView[]): void {
     this.error.set(null);
-    this.deviceCount.set(states.length);
     this.lastUpdated.set(new Date());
-    this.devices.set([...states].sort((a, b) => a.deviceId.localeCompare(b.deviceId)));
+    this.devices.set([...allDevices].sort((a, b) => a.deviceId.localeCompare(b.deviceId)));
+
+    // Устройства без текущих координат (ни разу не отчитались, либо запись протухла в Redis)
+    // остаются в списке слева (см. шаблон), но маркер на карте им ставить нечем.
+    const onMap = allDevices.filter((d) => d.lat != null && d.lon != null);
+    this.deviceCount.set(onMap.length);
 
     const seen = new Set<string>();
 
-    for (const state of states) {
-      seen.add(state.deviceId);
-      const position: L.LatLngExpression = [state.lat, state.lon];
-      const existing = this.markers.get(state.deviceId);
+    for (const device of onMap) {
+      seen.add(device.deviceId);
+      const position: L.LatLngExpression = [device.lat!, device.lon!];
+      const existing = this.markers.get(device.deviceId);
 
       if (existing) {
-        existing.setLatLng(position).setPopupContent(this.popupHtml(state));
+        existing.setLatLng(position).setPopupContent(this.popupHtml(device));
       } else {
-        const marker = L.marker(position).bindPopup(this.popupHtml(state)).addTo(this.map!);
-        this.markers.set(state.deviceId, marker);
+        const marker = L.marker(position).bindPopup(this.popupHtml(device)).addTo(this.map!);
+        this.markers.set(device.deviceId, marker);
       }
     }
 
@@ -110,8 +123,9 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     }
   }
 
-  private popupHtml(state: TelemetryState): string {
-    const speed = state.speedKmh != null ? `${state.speedKmh.toFixed(1)} км/ч` : '—';
-    return `<strong>${state.deviceId}</strong><br>Скорость: ${speed}<br>Обновлено: ${new Date(state.recordedAt).toLocaleTimeString()}`;
+  private popupHtml(device: DeviceView): string {
+    const speed = device.speedKmh != null ? `${device.speedKmh.toFixed(1)} км/ч` : '—';
+    const updated = device.recordedAt ? new Date(device.recordedAt).toLocaleTimeString() : '—';
+    return `<strong>${device.name}</strong><br>Скорость: ${speed}<br>Обновлено: ${updated}`;
   }
 }

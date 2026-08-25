@@ -13,7 +13,7 @@
     <artifactId>query-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>query-service</name>
-    <description>Live API: текущее состояние устройств из Redis (без обращения к Postgres)</description>
+    <description>Live API: текущее состояние устройств из Redis + реестр/история из read-реплики Postgres</description>
 
     <properties>
         <java.version>25</java.version>
@@ -31,6 +31,45 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!-- Read-реплика Postgres: реестр устройств (имя/группа), история маршрута для карты,
+             таблица пользователей dashboard (см. spring-security ниже). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-r2dbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>r2dbc-postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <!-- JWT вместо Basic Auth на Ingress: POST /auth/login выдаёт токен (bcrypt-проверка,
+             jjwt на подпись), остальные /devices/** его требуют (oauth2-resource-server —
+             штатный Spring Security способ валидировать самоподписанный JWT по shared secret). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.13.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.13.0</version>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.13.0</version>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>

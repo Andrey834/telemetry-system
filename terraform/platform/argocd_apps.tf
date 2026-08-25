@@ -15,10 +15,11 @@ data "http" "yandex_ca" {
 }
 
 locals {
-  registry_id     = data.terraform_remote_state.infra.outputs.registry_id
-  kafka_bootstrap = data.terraform_remote_state.infra.outputs.kafka_bootstrap_servers
-  postgres_host   = data.terraform_remote_state.infra.outputs.postgres_host
-  redis_host      = data.terraform_remote_state.infra.outputs.redis_host
+  registry_id      = data.terraform_remote_state.infra.outputs.registry_id
+  kafka_bootstrap  = data.terraform_remote_state.infra.outputs.kafka_bootstrap_servers
+  postgres_host    = data.terraform_remote_state.infra.outputs.postgres_host
+  postgres_replica = data.terraform_remote_state.infra.outputs.postgres_replica_host
+  redis_host       = data.terraform_remote_state.infra.outputs.redis_host
 
   dashboard_host         = var.dashboard_host
   query_service_host     = var.query_service_host
@@ -34,6 +35,9 @@ locals {
         kafkaBootstrapServers = local.kafka_bootstrap
         kafkaSecurityProtocol = "SASL_SSL"
         kafkaUsername         = "telemetry"
+        dbReplicaHost         = local.postgres_replica
+        dbPort                = "6432"
+        dbSslMode             = "require"
       }
       credentialsSecretName = "ingestion-service-credentials"
       ingress = var.enable_cert_manager ? {
@@ -64,6 +68,9 @@ locals {
       env = {
         redisHost          = local.redis_host
         corsAllowedOrigins = "https://${local.dashboard_host}"
+        dbReplicaHost      = local.postgres_replica
+        dbPort             = "6432"
+        dbSslMode          = "require"
       }
       credentialsSecretName = "query-service-credentials"
       # Пока enable_cert_manager=false (первый этап — только инфра/платформа, домен ещё не
@@ -84,19 +91,21 @@ locals {
         queryServiceUrl = "https://${local.query_service_host}"
       }
       credentialsSecretName = null
+      # Basic Auth на Ingress убран — авторизация теперь на уровне приложения (JWT-логин через
+      # query-service /auth/login), см. SecurityConfig в query-service.
       ingress = var.enable_cert_manager ? {
-        enabled             = true
-        className           = "nginx"
-        host                = local.dashboard_host
-        clusterIssuer       = local.cluster_issuer
-        tlsSecretName       = "dashboard-tls"
-        basicAuthSecretName = try(kubernetes_secret.dashboard_basic_auth[0].metadata[0].name, null)
+        enabled       = true
+        className     = "nginx"
+        host          = local.dashboard_host
+        clusterIssuer = local.cluster_issuer
+        tlsSecretName = "dashboard-tls"
       } : null
     }
   }
 
   argocd_secrets = {
     ingestion-service-credentials = {
+      DB_PASSWORD       = data.terraform_remote_state.infra.outputs.postgres_password
       KAFKA_PASSWORD    = data.terraform_remote_state.infra.outputs.kafka_password
       KAFKA_SSL_CA_CERT = data.http.yandex_ca.response_body
     }
@@ -107,7 +116,9 @@ locals {
       KAFKA_SSL_CA_CERT = data.http.yandex_ca.response_body
     }
     query-service-credentials = {
+      DB_PASSWORD    = data.terraform_remote_state.infra.outputs.postgres_password
       REDIS_PASSWORD = data.terraform_remote_state.infra.outputs.redis_password
+      JWT_SECRET     = var.jwt_secret
     }
   }
 }
@@ -129,21 +140,6 @@ resource "kubernetes_secret" "app_credentials" {
   data = each.value
 }
 
-# nginx-ingress ожидает htpasswd-файл в ключе "auth" ("логин:bcrypt-хеш"), поддерживает bcrypt
-# напрямую — генерируем хеш built-in функцией Terraform, без htpasswd/внешних утилит.
-resource "kubernetes_secret" "dashboard_basic_auth" {
-  count = var.enable_cert_manager && var.dashboard_basic_auth_user != null ? 1 : 0
-
-  metadata {
-    name      = "dashboard-basic-auth"
-    namespace = kubernetes_namespace.telemetry_system.metadata[0].name
-  }
-
-  data = {
-    auth = "${var.dashboard_basic_auth_user}:${bcrypt(var.dashboard_basic_auth_password)}"
-  }
-}
-
 resource "kubectl_manifest" "argocd_app" {
   for_each = local.argocd_apps
 
@@ -163,7 +159,7 @@ resource "kubectl_manifest" "argocd_app" {
         helm = {
           valuesObject = merge(
             {
-              image            = { repository = each.value.image }
+              image            = { repository = each.value.image, tag = var.image_tag }
               imagePullSecrets = []
               env              = each.value.env
             },

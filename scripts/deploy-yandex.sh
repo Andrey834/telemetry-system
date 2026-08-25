@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# Пересобирает и пушит изменившиеся образы сервисов в Yandex Container Registry и перезапускает
-# деплойменты.
+# Собирает и пушит образы сервисов в Yandex Container Registry с тегом = короткий git-хэш
+# коммита (не постоянно перезаписываемый "0.0.1" — так у каждого деплоя реальная версия,
+# на которую можно откатиться). Сам деплой (обновление тега в ArgoCD Application) — отдельным
+# шагом через terraform apply -var image_tag=..., команда печатается в конце.
 #
 # Запуск из корня репозитория: ./scripts/deploy-yandex.sh
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-NAMESPACE="telemetry-system"
 
 REGISTRY_ID="$(cd "$ROOT_DIR/terraform/infra" && terraform output -raw registry_id)"
 REGISTRY="cr.yandex/$REGISTRY_ID"
 SERVICES=(ingestion-service telemetry-processor query-service dashboard)
 
-# ~/.kube/config общий для Timeweb и Yandex-кластеров — явно переключаемся, чтобы случайно не
-# накатить рестарты не на тот кластер.
-KUBE_CONTEXT="${YC_KUBE_CONTEXT:-yc-telemetry-system}"
-echo "==> Переключаю kubectl-контекст на $KUBE_CONTEXT"
-kubectl config use-context "$KUBE_CONTEXT"
+IMAGE_TAG="$(cd "$ROOT_DIR" && git rev-parse --short HEAD)"
+if [[ -n "$(cd "$ROOT_DIR" && git status --porcelain)" ]]; then
+  IMAGE_TAG="${IMAGE_TAG}-dirty"
+  echo "==> В рабочей копии есть незакоммиченные изменения — тег образа: $IMAGE_TAG" >&2
+fi
+echo "==> Тег образов: $IMAGE_TAG"
 
 echo "==> Логин в $REGISTRY (через yc CLI, без ручного токена)"
 docker logout cr.yandex >/dev/null 2>&1 || true
@@ -52,12 +54,13 @@ push_with_retry() {
 }
 
 for svc in "${SERVICES[@]}"; do
-  echo "==> Сборка и пуш $svc"
-  docker build --platform linux/amd64 -t "$REGISTRY/$svc:0.0.1" "$ROOT_DIR/$svc"
-  push_with_retry "$REGISTRY/$svc:0.0.1" "$svc"
-
-  echo "==> Рестарт deployment/$svc-$svc (тег образа не меняется — IfNotPresent/Always сам не всегда перечитает вовремя)"
-  kubectl -n "$NAMESPACE" rollout restart "deployment/$svc-$svc" || true
+  echo "==> Сборка и пуш $svc:$IMAGE_TAG"
+  docker build --platform linux/amd64 -t "$REGISTRY/$svc:$IMAGE_TAG" "$ROOT_DIR/$svc"
+  push_with_retry "$REGISTRY/$svc:$IMAGE_TAG" "$svc"
 done
 
-echo "==> Готово. Проверьте: kubectl -n $NAMESPACE get pods"
+echo "==> Образы запушены. Выполните, чтобы задеплоить именно эту версию:"
+echo
+echo "    cd terraform/platform && terraform apply -var image_tag=$IMAGE_TAG"
+echo
+echo "ArgoCD сама применит новый тег и перекатит поды — kubectl rollout restart больше не нужен."

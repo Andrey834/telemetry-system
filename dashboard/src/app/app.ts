@@ -1,8 +1,8 @@
 import { Component } from '@angular/core';
-import { DeviceMap } from './device-map/device-map';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
-  imports: [DeviceMap],
+  imports: [RouterOutlet],
   selector: 'app-root',
   styleUrl: './app.scss',
   templateUrl: './app.html',

@@ -26,7 +26,14 @@ output "kubeconfig_command" {
 }
 
 output "postgres_host" {
-  value = yandex_mdb_postgresql_cluster.this.host[0].fqdn
+  # host[].role вычисляется сервером (MASTER/REPLICA) — индекс 0 не гарантированно primary
+  # с двумя host{} в кластере, фильтруем явно.
+  value = [for h in yandex_mdb_postgresql_cluster.this.host : h.fqdn if h.role == "MASTER"][0]
+}
+
+output "postgres_replica_host" {
+  description = "Read-реплика — сюда ходят query-service/ingestion-service, не мешая записи telemetry-processor в primary"
+  value       = [for h in yandex_mdb_postgresql_cluster.this.host : h.fqdn if h.role == "REPLICA"][0]
 }
 
 output "postgres_port" {

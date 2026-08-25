@@ -36,10 +36,14 @@ env:
   kafkaUsername: ""
   telemetryTopic: "telemetry.raw"
   ingestionPort: "8080"
+  dbReplicaHost: "postgres-replica"
+  dbPort: "5432"
+  dbName: "telemetry"
+  dbUser: "telemetry"
+  dbSslMode: "disable"
 
-# KAFKA_PASSWORD — создаётся вручную в кластере, не хранится в git:
-#   kubectl -n telemetry-system create secret generic ingestion-service-credentials \
-#     --from-literal=KAFKA_PASSWORD='...'
+# KAFKA_PASSWORD/DB_PASSWORD — управляются Terraform'ом (terraform/platform/argocd_apps.tf),
+# не хранятся в git.
 credentialsSecretName: ingestion-service-credentials
 
 ingress:

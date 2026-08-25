@@ -1,25 +1,23 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
-import { TelemetryState } from '../models/telemetry-state';
-
-declare global {
-  interface Window {
-    __env?: { queryServiceUrl?: string };
-  }
-}
+import { DeviceView } from '../models/device-view';
+import { RoutePoint } from '../models/route-point';
+import { apiBaseUrl } from './api-base-url';
 
 @Injectable({ providedIn: 'root' })
 export class DeviceService {
-  // window.__env заполняется entrypoint-скриптом контейнера при старте (см. public/env.template.js) —
-  // так один и тот же образ конфигурируется под разные окружения без пересборки. В ng serve
-  // window.__env пустой (public/env.js — заглушка), поэтому используется environment.ts.
-  private readonly baseUrl = `${window.__env?.queryServiceUrl || environment.queryServiceUrl}/devices`;
+  private readonly baseUrl = `${apiBaseUrl()}/devices`;
 
   constructor(private readonly http: HttpClient) {}
 
-  getAll(): Observable<TelemetryState[]> {
-    return this.http.get<TelemetryState[]>(this.baseUrl);
+  getAll(): Observable<DeviceView[]> {
+    return this.http.get<DeviceView[]>(this.baseUrl);
+  }
+
+  getHistory(deviceId: string, limit = 200): Observable<RoutePoint[]> {
+    return this.http.get<RoutePoint[]>(`${this.baseUrl}/${deviceId}/history`, {
+      params: { limit },
+    });
   }
 }

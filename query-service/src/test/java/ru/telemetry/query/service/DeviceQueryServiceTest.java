@@ -13,6 +13,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import ru.telemetry.query.model.TelemetryState;
+import ru.telemetry.query.repository.DeviceRepository;
+import ru.telemetry.query.repository.TelemetryHistoryRepository;
 
 import java.time.Instant;
 import java.util.Arrays;
@@ -36,11 +38,17 @@ class DeviceQueryServiceTest {
     @Mock
     private ReactiveSetOperations<String, String> setOperations;
 
+    @Mock
+    private DeviceRepository deviceRepository;
+
+    @Mock
+    private TelemetryHistoryRepository historyRepository;
+
     private DeviceQueryService service;
 
     @BeforeEach
     void setUp() {
-        service = new DeviceQueryService(redisTemplate, stringRedisTemplate);
+        service = new DeviceQueryService(redisTemplate, stringRedisTemplate, deviceRepository, historyRepository);
     }
 
     @Test

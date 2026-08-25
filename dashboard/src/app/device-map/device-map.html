@@ -6,6 +6,9 @@
   @if (error()) {
     <span class="error">{{ error() }}</span>
   }
+  <span class="spacer"></span>
+  <span class="username">{{ auth.username() }}</span>
+  <button type="button" class="logout" (click)="logout()">Выйти</button>
 </div>
 
 <div class="layout">
