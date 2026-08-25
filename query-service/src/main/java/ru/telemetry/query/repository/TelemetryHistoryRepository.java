@@ -35,13 +35,16 @@ public interface TelemetryHistoryRepository extends R2dbcRepository<HistoryRow, 
     /** Разрывы между соседними точками истории каждого устройства за последние hoursBack часов —
      * основа журнала событий (DeviceQueryService.findEvents). Считается на лету, без отдельной
      * таблицы/детектора: у query-service 2 реплики, живой таймер-детектор внутри сервиса писал бы
-     * дублирующиеся события с каждой реплики независимо. */
+     * дублирующиеся события с каждой реплики независимо. Фильтр по реестру devices — без него
+     * в журнал попадают и осиротевшие device_id (например, из нагрузочного теста с одноразовыми
+     * id), которых нет в реестре и никогда не будет. */
     @Query("""
             SELECT device_id, recorded_at,
                    LAG(recorded_at) OVER (PARTITION BY device_id ORDER BY recorded_at) AS previous_recorded_at,
                    EXTRACT(EPOCH FROM (recorded_at - LAG(recorded_at) OVER (PARTITION BY device_id ORDER BY recorded_at))) AS gap_seconds
             FROM telemetry_history
             WHERE recorded_at > now() - make_interval(hours => :hoursBack)
+              AND device_id IN (SELECT device_id FROM devices)
             ORDER BY device_id, recorded_at
             """)
     Flux<GapRow> findGaps(@Param("hoursBack") int hoursBack);

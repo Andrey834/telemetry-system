@@ -41,7 +41,7 @@
 
   <div class="glass flex flex-col gap-2.5 rounded-panel p-3.5">
     <div class="text-[11px] uppercase tracking-wider text-fg-faint">Журнал событий (24ч)</div>
-    <div class="flex-1 overflow-y-auto">
+    <div class="max-h-64 flex-1 overflow-y-auto">
       @if (events().length === 0) {
         <p class="text-sm text-fg-faint">Событий не было.</p>
       } @else {
