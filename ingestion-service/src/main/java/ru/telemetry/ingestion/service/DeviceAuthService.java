@@ -29,7 +29,10 @@ public class DeviceAuthService {
         }
         String candidateHash = sha256Hex(apiKey);
         return deviceRepository.findById(deviceId)
-                .map(device -> device.apiKeyHash().equals(candidateHash))
+                // Деактивированное устройство (Device.active=false) не проходит проверку — как
+                // будто его вообще нет в реестре, а не отдельная ошибка "устройство отключено":
+                // не даём отличить деактивацию от опечатки в deviceId/ключе по ответу API.
+                .map(device -> device.active() && device.apiKeyHash().equals(candidateHash))
                 .defaultIfEmpty(false);
     }
 

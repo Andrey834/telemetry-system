@@ -106,4 +106,8 @@ export class DeviceService {
   register(deviceId: string, name: string, groupName: string): Observable<RegisteredDevice> {
     return this.http.post<RegisteredDevice>(this.baseUrl, { deviceId, name, groupName });
   }
+
+  update(deviceId: string, name: string, groupName: string, active: boolean): Observable<void> {
+    return this.http.patch<void>(`${this.baseUrl}/${deviceId}`, { name, groupName, active });
+  }
 }

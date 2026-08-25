@@ -2,6 +2,8 @@ package ru.telemetry.query.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -30,6 +32,18 @@ public class DeviceAdminController {
         }
         return deviceAdminService.register(request.deviceId(), request.name(), request.groupName())
                 .map(registered -> ResponseEntity.status(HttpStatus.CREATED).body(registered));
+    }
+
+    public record UpdateDeviceRequest(String name, String groupName, boolean active) {
+    }
+
+    @PatchMapping("/{deviceId}")
+    public Mono<ResponseEntity<Void>> update(@PathVariable String deviceId, @RequestBody UpdateDeviceRequest request) {
+        if (isBlank(request.name()) || isBlank(request.groupName())) {
+            return Mono.just(ResponseEntity.badRequest().build());
+        }
+        return deviceAdminService.update(deviceId, request.name(), request.groupName(), request.active())
+                .thenReturn(ResponseEntity.noContent().<Void>build());
     }
 
     private static boolean isBlank(String value) {

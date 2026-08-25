@@ -96,10 +96,10 @@ public class DeviceQueryService {
 
     private DeviceView toView(Device device, TelemetryState state) {
         if (state == null) {
-            return new DeviceView(device.deviceId(), device.name(), device.groupName(),
+            return new DeviceView(device.deviceId(), device.name(), device.groupName(), device.active(),
                     DeviceStatus.OFFLINE, null, null, null, null);
         }
-        return new DeviceView(device.deviceId(), device.name(), device.groupName(),
+        return new DeviceView(device.deviceId(), device.name(), device.groupName(), device.active(),
                 statusOf(state.recordedAt()), state.lat(), state.lon(), state.speedKmh(), state.recordedAt());
     }
 

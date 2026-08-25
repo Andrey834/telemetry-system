@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpStatus;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.r2dbc.core.FetchSpec;
 import org.springframework.web.server.ResponseStatusException;
@@ -92,6 +93,34 @@ class DeviceAdminServiceTest {
                 .expectErrorSatisfies(e -> {
                     assertThat(e).isInstanceOf(ResponseStatusException.class);
                     assertThat(((ResponseStatusException) e).getStatusCode().value()).isEqualTo(409);
+                })
+                .verify();
+    }
+
+    @Test
+    void update_existingDevice_completes() {
+        given(primaryDb.client()).willReturn(databaseClient);
+        given(databaseClient.sql(anyString())).willReturn(executeSpec);
+        given(executeSpec.bind(anyString(), any())).willReturn(executeSpec);
+        given(executeSpec.fetch()).willReturn(fetchSpec);
+        given(fetchSpec.rowsUpdated()).willReturn(Mono.just(1L));
+
+        StepVerifier.create(service.update("bus-1", "Автобус 1 (новое имя)", "buses", false))
+                .verifyComplete();
+    }
+
+    @Test
+    void update_unknownDevice_mapsToNotFound() {
+        given(primaryDb.client()).willReturn(databaseClient);
+        given(databaseClient.sql(anyString())).willReturn(executeSpec);
+        given(executeSpec.bind(anyString(), any())).willReturn(executeSpec);
+        given(executeSpec.fetch()).willReturn(fetchSpec);
+        given(fetchSpec.rowsUpdated()).willReturn(Mono.just(0L));
+
+        StepVerifier.create(service.update("unknown", "x", "y", true))
+                .expectErrorSatisfies(e -> {
+                    assertThat(e).isInstanceOf(ResponseStatusException.class);
+                    assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
                 })
                 .verify();
     }

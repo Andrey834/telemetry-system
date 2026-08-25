@@ -170,7 +170,7 @@
     @if (activeTab() === 'charts') {
       <app-fleet-chart
         class="absolute inset-0"
-        [devices]="devices()"
+        [devices]="activeDevices()"
         [selectedDeviceId]="selectedDeviceId()"
         [selectedDeviceName]="selectedDevice()?.name ?? null"
         [routePoints]="routePoints()"

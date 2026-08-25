@@ -50,6 +50,7 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/auth/login", "/actuator/**").permitAll()
                         .pathMatchers(HttpMethod.POST, "/devices").hasRole("ADMIN")
+                        .pathMatchers(HttpMethod.PATCH, "/devices/*").hasRole("ADMIN")
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
                         .jwtDecoder(jwtDecoder)

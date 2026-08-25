@@ -32,7 +32,7 @@ class DeviceAuthServiceTest {
     @Test
     void isValid_correctKey_returnsTrue() {
         given(deviceRepository.findById("bus-1"))
-                .willReturn(Mono.just(new Device("bus-1", "Автобус 1", "buses", sha256(CORRECT_KEY))));
+                .willReturn(Mono.just(new Device("bus-1", "Автобус 1", "buses", sha256(CORRECT_KEY), true)));
 
         StepVerifier.create(service.isValid("bus-1", CORRECT_KEY))
                 .expectNext(true)
@@ -42,9 +42,19 @@ class DeviceAuthServiceTest {
     @Test
     void isValid_wrongKey_returnsFalse() {
         given(deviceRepository.findById("bus-1"))
-                .willReturn(Mono.just(new Device("bus-1", "Автобус 1", "buses", sha256(CORRECT_KEY))));
+                .willReturn(Mono.just(new Device("bus-1", "Автобус 1", "buses", sha256(CORRECT_KEY), true)));
 
         StepVerifier.create(service.isValid("bus-1", "wrong-key"))
+                .expectNext(false)
+                .verifyComplete();
+    }
+
+    @Test
+    void isValid_deactivatedDevice_returnsFalseEvenWithCorrectKey() {
+        given(deviceRepository.findById("bus-1"))
+                .willReturn(Mono.just(new Device("bus-1", "Автобус 1", "buses", sha256(CORRECT_KEY), false)));
+
+        StepVerifier.create(service.isValid("bus-1", CORRECT_KEY))
                 .expectNext(false)
                 .verifyComplete();
     }

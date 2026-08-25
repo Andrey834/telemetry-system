@@ -81,16 +81,21 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     this.devices().find((d) => d.deviceId === this.selectedDeviceId()) ?? null,
   );
 
+  // Для fleet-chart (аналитика живого парка) — без деактивированных, в отличие от devices(),
+  // который целиком идёт в device-admin для управления реестром.
+  protected readonly activeDevices = computed(() => this.devices().filter((d) => d.active));
+
   // Группировка по groupName, внутри группы — сортировка по выбранному полю. Группы идут
   // в алфавитном порядке названия — предсказуемее, чем "как пришло с бэкенда". Поиск фильтрует
-  // до группировки — пустые группы после фильтра просто не появляются в списке.
+  // до группировки — пустые группы после фильтра просто не появляются в списке. Деактивированные
+  // устройства (active=false) не показываются на живой карте/списке — они видны только в
+  // admin-реестре (вкладка "Устройства", получает несфильтрованный devices() напрямую).
   protected readonly groupedDevices = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
+    const active = this.devices().filter((d) => d.active);
     const filtered = query
-      ? this.devices().filter(
-          (d) => d.name.toLowerCase().includes(query) || d.deviceId.toLowerCase().includes(query),
-        )
-      : this.devices();
+      ? active.filter((d) => d.name.toLowerCase().includes(query) || d.deviceId.toLowerCase().includes(query))
+      : active;
 
     const groups = new Map<string, DeviceView[]>();
     for (const device of filtered) {
@@ -254,7 +259,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
       return;
     }
     const points: L.HeatLatLngTuple[] = this.devices()
-      .filter((d) => d.lat != null && d.lon != null)
+      .filter((d) => d.active && d.lat != null && d.lon != null)
       .map((d) => [d.lat!, d.lon!, 1]);
 
     if (this.heatLayer) {
@@ -385,7 +390,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
 
     // Устройства без текущих координат (ни разу не отчитались, либо запись протухла в Redis)
     // остаются в списке слева, но маркер на карте им ставить нечем.
-    const onMap = allDevices.filter((d) => d.lat != null && d.lon != null);
+    const onMap = allDevices.filter((d) => d.active && d.lat != null && d.lon != null);
     this.deviceCount.set(onMap.length);
 
     const seen = new Set<string>();

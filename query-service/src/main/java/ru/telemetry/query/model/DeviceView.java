@@ -12,6 +12,7 @@ public record DeviceView(
         String deviceId,
         String name,
         String groupName,
+        boolean active,
         DeviceStatus status,
         Double lat,
         Double lon,

@@ -5,5 +5,5 @@ import org.springframework.data.relational.core.mapping.Table;
 
 /** Реестр устройств (read-реплика Postgres) — имя и группа для dashboard. */
 @Table("devices")
-public record Device(@Id String deviceId, String name, String groupName) {
+public record Device(@Id String deviceId, String name, String groupName, boolean active) {
 }

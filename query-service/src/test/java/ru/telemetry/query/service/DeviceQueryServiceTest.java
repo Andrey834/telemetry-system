@@ -106,7 +106,7 @@ class DeviceQueryServiceTest {
 
     @Test
     void findAllWithStatus_recentDevice_isOnline() {
-        Device device = new Device("bus-1", "Автобус 1", "buses");
+        Device device = new Device("bus-1", "Автобус 1", "buses", true);
         TelemetryState state = new TelemetryState("bus-1", 1L, 10.0, 20.0, 30.0, Instant.now());
         given(deviceRepository.findAll()).willReturn(Flux.just(device));
         given(redisTemplate.opsForValue()).willReturn(valueOperations);
@@ -124,7 +124,7 @@ class DeviceQueryServiceTest {
 
     @Test
     void findAllWithStatus_oldButRecentEnough_isStale() {
-        Device device = new Device("bus-1", "Автобус 1", "buses");
+        Device device = new Device("bus-1", "Автобус 1", "buses", true);
         TelemetryState state = new TelemetryState("bus-1", 1L, 10.0, 20.0, 30.0,
                 Instant.now().minus(Duration.ofMinutes(2)));
         given(deviceRepository.findAll()).willReturn(Flux.just(device));
@@ -138,7 +138,7 @@ class DeviceQueryServiceTest {
 
     @Test
     void findAllWithStatus_veryOld_isOffline() {
-        Device device = new Device("bus-1", "Автобус 1", "buses");
+        Device device = new Device("bus-1", "Автобус 1", "buses", true);
         TelemetryState state = new TelemetryState("bus-1", 1L, 10.0, 20.0, 30.0,
                 Instant.now().minus(Duration.ofHours(1)));
         given(deviceRepository.findAll()).willReturn(Flux.just(device));
@@ -152,7 +152,7 @@ class DeviceQueryServiceTest {
 
     @Test
     void findAllWithStatus_neverReported_isOfflineWithNullCoordinates() {
-        Device device = new Device("bus-1", "Автобус 1", "buses");
+        Device device = new Device("bus-1", "Автобус 1", "buses", true);
         given(deviceRepository.findAll()).willReturn(Flux.just(device));
         // Устройство есть в реестре, но ни разу не присылало данные — findByDeviceIds попадает
         // на ветку с непустым списком ключей, Redis отдаёт пустой результат (не null-элемент).
@@ -197,7 +197,7 @@ class DeviceQueryServiceTest {
 
     @Test
     void findEvents_gapAboveThreshold_emitsOnlineThenOfflinePaired() {
-        Device device = new Device("bus-1", "Автобус 1", "buses");
+        Device device = new Device("bus-1", "Автобус 1", "buses", true);
         Instant previous = Instant.parse("2026-01-01T10:00:00Z");
         Instant current = previous.plus(Duration.ofMinutes(10));
         given(deviceRepository.findAll()).willReturn(Flux.just(device));
@@ -218,7 +218,7 @@ class DeviceQueryServiceTest {
 
     @Test
     void findEvents_gapBelowThreshold_noEvents() {
-        Device device = new Device("bus-1", "Автобус 1", "buses");
+        Device device = new Device("bus-1", "Автобус 1", "buses", true);
         Instant previous = Instant.parse("2026-01-01T10:00:00Z");
         Instant current = previous.plusSeconds(10);
         given(deviceRepository.findAll()).willReturn(Flux.just(device));
@@ -229,7 +229,7 @@ class DeviceQueryServiceTest {
 
     @Test
     void findEvents_nullGapForFirstPoint_ignoredWithoutError() {
-        Device device = new Device("bus-1", "Автобус 1", "buses");
+        Device device = new Device("bus-1", "Автобус 1", "buses", true);
         given(deviceRepository.findAll()).willReturn(Flux.just(device));
         given(historyRepository.findGaps(24)).willReturn(Flux.just(new GapRow("bus-1", Instant.now(), null, null)));
 

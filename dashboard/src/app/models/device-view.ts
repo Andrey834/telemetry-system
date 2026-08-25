@@ -6,6 +6,7 @@ export interface DeviceView {
   deviceId: string;
   name: string;
   groupName: string;
+  active: boolean;
   status: DeviceStatus;
   lat: number | null;
   lon: number | null;

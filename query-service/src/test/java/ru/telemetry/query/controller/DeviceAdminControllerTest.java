@@ -59,4 +59,32 @@ class DeviceAdminControllerTest {
                 .expectErrorSatisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.CONFLICT))
                 .verify();
     }
+
+    @Test
+    void update_valid_returnsNoContent() {
+        given(deviceAdminService.update("bus-1", "Автобус 1", "buses", false)).willReturn(Mono.empty());
+
+        StepVerifier.create(controller.update("bus-1", new DeviceAdminController.UpdateDeviceRequest("Автобус 1", "buses", false)))
+                .assertNext(response -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT))
+                .verifyComplete();
+    }
+
+    @Test
+    void update_blankName_returnsBadRequestWithoutHittingService() {
+        StepVerifier.create(controller.update("bus-1", new DeviceAdminController.UpdateDeviceRequest("", "buses", true)))
+                .assertNext(response -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST))
+                .verifyComplete();
+
+        verifyNoInteractions(deviceAdminService);
+    }
+
+    @Test
+    void update_unknownDevice_propagatesNotFound() {
+        given(deviceAdminService.update("unknown", "x", "y", true))
+                .willReturn(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND)));
+
+        StepVerifier.create(controller.update("unknown", new DeviceAdminController.UpdateDeviceRequest("x", "y", true)))
+                .expectErrorSatisfies(e -> assertThat(((ResponseStatusException) e).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND))
+                .verify();
+    }
 }

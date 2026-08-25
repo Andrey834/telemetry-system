@@ -52,6 +52,24 @@ public class DeviceAdminService {
                         HttpStatus.CONFLICT, "Устройство с таким deviceId уже существует"));
     }
 
+    /** Переименование/смена группы/деактивация — та же запись через PrimaryDb, что и register(). */
+    public Mono<Void> update(String deviceId, String name, String groupName, boolean active) {
+        return primaryDb.client()
+                .sql("""
+                        UPDATE devices SET name = :name, group_name = :groupName, active = :active
+                        WHERE device_id = :deviceId
+                        """)
+                .bind("deviceId", deviceId)
+                .bind("name", name)
+                .bind("groupName", groupName)
+                .bind("active", active)
+                .fetch()
+                .rowsUpdated()
+                .flatMap(rows -> rows == 0
+                        ? Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Устройство не найдено"))
+                        : Mono.empty());
+    }
+
     // package-private (не private) — так же, как DeviceAuthService.sha256Hex в ingestion-service,
     // тестируем напрямую без мока DatabaseClient.
     static String generateApiKey() {

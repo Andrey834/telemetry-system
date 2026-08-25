@@ -52,6 +52,54 @@ export class DeviceAdmin {
     });
   }
 
+  protected readonly editingDeviceId = signal<string | null>(null);
+  protected editName = '';
+  protected editGroupName = '';
+  protected readonly updatingId = signal<string | null>(null);
+  protected readonly updateError = signal<string | null>(null);
+
+  protected startEdit(device: DeviceView): void {
+    this.editingDeviceId.set(device.deviceId);
+    this.editName = device.name;
+    this.editGroupName = device.groupName;
+  }
+
+  protected cancelEdit(): void {
+    this.editingDeviceId.set(null);
+  }
+
+  protected saveEdit(device: DeviceView): void {
+    const name = this.editName.trim();
+    const groupName = this.editGroupName.trim();
+    if (!name || !groupName) {
+      return;
+    }
+    this.updatingId.set(device.deviceId);
+    this.updateError.set(null);
+    this.deviceService.update(device.deviceId, name, groupName, device.active).subscribe({
+      next: () => {
+        this.updatingId.set(null);
+        this.editingDeviceId.set(null);
+      },
+      error: () => {
+        this.updatingId.set(null);
+        this.updateError.set('Не удалось сохранить изменения');
+      },
+    });
+  }
+
+  protected toggleActive(device: DeviceView): void {
+    this.updatingId.set(device.deviceId);
+    this.updateError.set(null);
+    this.deviceService.update(device.deviceId, device.name, device.groupName, !device.active).subscribe({
+      next: () => this.updatingId.set(null),
+      error: () => {
+        this.updatingId.set(null);
+        this.updateError.set('Не удалось изменить статус устройства');
+      },
+    });
+  }
+
   protected closeKeyModal(): void {
     this.registered.set(null);
     this.copied.set(false);
