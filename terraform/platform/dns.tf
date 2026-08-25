@@ -60,3 +60,35 @@ resource "null_resource" "dns_record" {
     EOT
   }
 }
+
+# Внешний резолвер, которым пользуется Yandex Managed Kubernetes (CoreDNS форвардит на него через
+# /etc/resolv.conf), держит очень долгоживущий кэш — после смены A-записи (например, IP
+# ingress-nginx поменялся после пересоздания LB) кластер изнутри может резолвить наши домены в
+# устаревший IP часами, из-за чего самопроверка HTTP-01 у cert-manager зависает. coredns-user —
+# штатный EnsureExists-ConfigMap для пользовательских правок CoreDNS (не перезатирается
+# addon-manager'ом), сюда добавляем статичные hosts-записи — кластер больше не зависит от
+# внешнего резолвера при обращении сам к себе.
+resource "kubernetes_config_map_v1_data" "coredns_user" {
+  count = var.dns_zone == null ? 0 : 1
+
+  metadata {
+    name      = "coredns-user"
+    namespace = "kube-system"
+  }
+
+  data = {
+    Corefile = <<-EOT
+      ${var.dns_zone}:53 {
+          hosts {
+              ${module.platform.ingress_nginx_ip} ${var.dashboard_host}
+              ${module.platform.ingress_nginx_ip} ${var.query_service_host}
+              ${module.platform.ingress_nginx_ip} ${var.ingestion_service_host}
+              fallthrough
+          }
+          forward . /etc/resolv.conf
+      }
+    EOT
+  }
+
+  force = true
+}
