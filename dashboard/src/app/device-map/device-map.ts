@@ -26,7 +26,6 @@ import { FleetChart } from './fleet-chart';
 import { DeviceAdmin } from './device-admin';
 import { Toast } from '../shared/toast';
 
-const MARKER_ANIMATION_MS = 1500;
 const PLAYBACK_STEP_MS = 500;
 const DEFAULT_CENTER: L.LatLngExpression = [55.751244, 37.618423]; // Москва — стартовый вид карты
 
@@ -142,10 +141,6 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   // iconCreateFunction ниже читает статус каждого дочернего маркера отсюда.
   private readonly markerStatuses = new Map<L.Marker, DeviceStatus>();
   private markerClusterGroup?: L.MarkerClusterGroup;
-  // Плавное движение маркера между обновлениями вместо мгновенного "прыжка" — id текущего
-  // requestAnimationFrame на устройство, чтобы отменить недоигранную анимацию, если новые данные
-  // пришли раньше, чем предыдущая успела доиграть.
-  private readonly markerAnimations = new Map<string, number>();
   private tileLayer?: L.TileLayer;
   // Ключ — deviceId: маршрут на карте показывается только у выбранного (клик по строке) и у
   // отмеченных чекбоксом "сравнить" устройств, не у всего парка.
@@ -229,9 +224,6 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.pollSubscription?.unsubscribe();
-    for (const frame of this.markerAnimations.values()) {
-      cancelAnimationFrame(frame);
-    }
     if (this.playbackTimer != null) {
       clearInterval(this.playbackTimer);
     }
@@ -346,39 +338,13 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     }
   }
 
-  /** Плавно двигает маркер к новой позиции вместо мгновенного "прыжка" — так
-   * устройство выглядит едущим, а не телепортирующимся на каждое обновление. */
-  private animateMarkerTo(deviceId: string, marker: L.Marker, to: L.LatLngExpression): void {
-    const previousFrame = this.markerAnimations.get(deviceId);
-    if (previousFrame != null) {
-      cancelAnimationFrame(previousFrame);
-    }
-
-    const from = marker.getLatLng();
-    const target = L.latLng(to);
-    const start = performance.now();
-
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / MARKER_ANIMATION_MS);
-      marker.setLatLng([
-        from.lat + (target.lat - from.lat) * t,
-        from.lng + (target.lng - from.lng) * t,
-      ]);
-      if (t < 1) {
-        this.markerAnimations.set(deviceId, requestAnimationFrame(step));
-      } else {
-        this.markerAnimations.delete(deviceId);
-      }
-    };
-    this.markerAnimations.set(deviceId, requestAnimationFrame(step));
-  }
-
-  private stopMarkerAnimation(deviceId: string): void {
-    const frame = this.markerAnimations.get(deviceId);
-    if (frame != null) {
-      cancelAnimationFrame(frame);
-      this.markerAnimations.delete(deviceId);
-    }
+  /** Мгновенное обновление позиции — было плавное движение через повторные setLatLng() в
+   * requestAnimationFrame, но leaflet.markercluster не рассчитан на такую частоту апдейтов у
+   * кластеризуемого маркера: внутренний _childMarkerMoved периодически падал на undefined
+   * (сломанные клики по устройствам, мусор в консоли). Один setLatLng за тик — именно то, что
+   * плагин ожидает. */
+  private animateMarkerTo(_deviceId: string, marker: L.Marker, to: L.LatLngExpression): void {
+    marker.setLatLng(to);
   }
 
   /** Маршрут на карте — только у выбранного устройства (клик по строке, цвет --accent) и у
@@ -567,7 +533,6 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     // Устройство пропало из ответа query-service (TTL/рестарт) — убираем маркер с карты.
     for (const [deviceId, marker] of this.markers) {
       if (!seen.has(deviceId)) {
-        this.stopMarkerAnimation(deviceId);
         this.markerClusterGroup!.removeLayer(marker);
         this.markers.delete(deviceId);
         this.markerStatuses.delete(marker);
