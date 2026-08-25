@@ -5,7 +5,7 @@ import { AuthService } from '../services/auth.service';
 
 @Component({
   imports: [FormsModule],
-  host: { class: 'flex items-center justify-center h-full bg-gray-100 dark:bg-gray-900 font-sans' },
+  host: { class: 'flex items-center justify-center h-full font-sans text-fg' },
   selector: 'app-login',
   templateUrl: './login.html',
 })

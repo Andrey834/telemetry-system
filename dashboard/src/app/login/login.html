@@ -1,27 +1,28 @@
-<form
-  class="flex w-72 flex-col gap-4 rounded-lg bg-white dark:bg-gray-800 p-8 text-gray-900 dark:text-gray-200 shadow-lg dark:shadow-none"
-  (ngSubmit)="submit()"
->
-  <h1 class="text-center text-lg font-semibold">telemetry-system</h1>
+<form class="glass flex w-full max-w-[280px] flex-col gap-3 rounded-panel p-5" (ngSubmit)="submit()">
+  <div class="flex items-center gap-2">
+    <span class="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-ctl border border-accent/45 bg-accent-soft text-xs text-accent">◎</span>
+    <span class="text-base font-medium">Fleet Live</span>
+  </div>
+  <p class="text-xs text-fg-faint">Вход для операторов</p>
 
-  <label class="flex flex-col gap-1.5 text-sm">
+  <label class="flex flex-col gap-1 text-xs text-fg-faint">
     Логин
     <input
       type="text"
       name="username"
-      class="rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-200 px-2 py-2"
+      class="h-9 rounded-ctl border border-line bg-surface-2 px-2.5 text-sm text-fg"
       [(ngModel)]="username"
       autocomplete="username"
       required
     />
   </label>
 
-  <label class="flex flex-col gap-1.5 text-sm">
+  <label class="flex flex-col gap-1 text-xs text-fg-faint">
     Пароль
     <input
       type="password"
       name="password"
-      class="rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-200 px-2 py-2"
+      class="h-9 rounded-ctl border border-line bg-surface-2 px-2.5 text-sm text-fg"
       [(ngModel)]="password"
       autocomplete="current-password"
       required
@@ -29,12 +30,14 @@
   </label>
 
   @if (error()) {
-    <div class="text-sm text-red-600 dark:text-red-400">{{ error() }}</div>
+    <div class="flex items-start gap-1.5 rounded-ctl border border-bad/35 bg-bad/10 px-2.5 py-2 text-xs text-bad">
+      <span>⚠</span><span>{{ error() }}</span>
+    </div>
   }
 
   <button
     type="submit"
-    class="mt-2 rounded bg-blue-600 py-2.5 text-white disabled:opacity-60"
+    class="mt-1 h-9 rounded-ctl border border-accent/55 bg-accent-soft text-sm font-medium text-fg disabled:opacity-60"
     [disabled]="loading()"
   >
     {{ loading() ? 'Вход…' : 'Войти' }}
