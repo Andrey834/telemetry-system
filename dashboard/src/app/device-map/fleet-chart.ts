@@ -1,6 +1,8 @@
+import { DatePipe } from '@angular/common';
 import { Component, computed, input } from '@angular/core';
 import { ChartConfiguration, ChartData } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
+import { DeviceEvent } from '../models/device-event';
 import { DeviceView } from '../models/device-view';
 import { FleetActivityPoint } from '../models/fleet-activity-point';
 import { RoutePoint } from '../models/route-point';
@@ -42,7 +44,7 @@ function haversineKm(a: RoutePoint, b: RoutePoint): number {
 }
 
 @Component({
-  imports: [BaseChartDirective],
+  imports: [BaseChartDirective, DatePipe],
   selector: 'app-fleet-chart',
   templateUrl: './fleet-chart.html',
 })
@@ -53,6 +55,7 @@ export class FleetChart {
   readonly routePoints = input<RoutePoint[]>([]);
   readonly compareSeries = input<Map<string, RoutePoint[]>>(new Map());
   readonly activityPoints = input<FleetActivityPoint[]>([]);
+  readonly events = input<DeviceEvent[]>([]);
 
   // Данные обновляются каждые 5с (общий poll в device-map.ts) — анимация на каждое обновление
   // выглядит как моргание графика, а не полезная информация, поэтому везде выключена.

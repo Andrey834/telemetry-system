@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import ru.telemetry.query.model.DeviceEvent;
 import ru.telemetry.query.model.DeviceView;
 import ru.telemetry.query.model.FleetActivityPoint;
 import ru.telemetry.query.model.RoutePoint;
@@ -52,6 +53,14 @@ public class DeviceController {
     @GetMapping("/activity")
     public Flux<FleetActivityPoint> getActivity(@RequestParam(defaultValue = "60") int minutes) {
         return queryService.findActivity(minutes);
+    }
+
+    /** Журнал событий (переходы online/offline) за последние hours часов, вычисляется на лету
+     * из разрывов в истории. */
+    @GetMapping("/events")
+    public Flux<DeviceEvent> getEvents(@RequestParam(defaultValue = "24") int hours,
+                                        @RequestParam(defaultValue = "50") int limit) {
+        return queryService.findEvents(hours, limit);
     }
 
     /** Push вместо поллинга: сервис сам опрашивает Redis раз в 2с и шлёт клиенту только когда

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.telemetry.query.model.Device;
+import ru.telemetry.query.model.DeviceEvent;
 import ru.telemetry.query.model.DeviceStatus;
 import ru.telemetry.query.model.DeviceView;
 import ru.telemetry.query.model.FleetActivityPoint;
@@ -16,6 +17,7 @@ import ru.telemetry.query.repository.TelemetryHistoryRepository;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -124,5 +126,24 @@ public class DeviceQueryService {
     /** Активность всего парка (сообщений/минуту) за последние minutes — для графика на dashboard. */
     public Flux<FleetActivityPoint> findActivity(int minutes) {
         return historyRepository.countByTimeBucket(minutes);
+    }
+
+    /** Журнал событий за последние hoursBack часов — вычисляется из разрывов в telemetry_history
+     * (см. TelemetryHistoryRepository.findGaps), а не хранится отдельно. Каждый разрыв длиннее
+     * STALE_THRESHOLD даёт пару событий: OFFLINE в момент последней точки перед разрывом, ONLINE —
+     * когда точки снова пошли. */
+    public Flux<DeviceEvent> findEvents(int hoursBack, int limit) {
+        return deviceRepository.findAll()
+                .collectMap(Device::deviceId, Device::name)
+                .flatMapMany(nameById -> historyRepository.findGaps(hoursBack)
+                        .filter(row -> row.gapSeconds() != null && row.gapSeconds() >= STALE_THRESHOLD.toSeconds())
+                        .flatMapIterable(row -> {
+                            String name = nameById.getOrDefault(row.deviceId(), row.deviceId());
+                            return List.of(
+                                    new DeviceEvent(row.deviceId(), name, "OFFLINE", row.previousRecordedAt()),
+                                    new DeviceEvent(row.deviceId(), name, "ONLINE", row.recordedAt()));
+                        }))
+                .collectSortedList(Comparator.comparing(DeviceEvent::occurredAt).reversed())
+                .flatMapMany(events -> Flux.fromIterable(events.subList(0, Math.min(limit, events.size()))));
     }
 }

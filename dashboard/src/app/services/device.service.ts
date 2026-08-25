@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import { DeviceEvent } from '../models/device-event';
 import { DeviceView } from '../models/device-view';
 import { FleetActivityPoint } from '../models/fleet-activity-point';
 import { RegisteredDevice } from '../models/registered-device';
@@ -91,6 +92,12 @@ export class DeviceService {
   getActivity(minutes = 60): Observable<FleetActivityPoint[]> {
     return this.http.get<FleetActivityPoint[]>(`${this.baseUrl}/activity`, {
       params: { minutes },
+    });
+  }
+
+  getEvents(hours = 24, limit = 50): Observable<DeviceEvent[]> {
+    return this.http.get<DeviceEvent[]>(`${this.baseUrl}/events`, {
+      params: { hours, limit },
     });
   }
 

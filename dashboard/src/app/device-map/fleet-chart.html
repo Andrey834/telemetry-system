@@ -52,13 +52,37 @@
     </div>
   </div>
 
-  <div class="bg-gray-800 rounded-lg p-4 flex flex-col md:col-span-2">
+  <div class="bg-gray-800 rounded-lg p-4 flex flex-col">
     <h2 class="text-sm font-semibold text-gray-200 mb-3">Активность парка во времени</h2>
     <div class="relative flex-1 min-h-48">
       @if (activityPoints().length > 0) {
         <canvas baseChart [data]="activityChartData()" [options]="activityChartOptions" type="line"></canvas>
       } @else {
         <p class="text-sm text-gray-500">Нет данных за последний час.</p>
+      }
+    </div>
+  </div>
+
+  <div class="bg-gray-800 rounded-lg p-4 flex flex-col">
+    <h2 class="text-sm font-semibold text-gray-200 mb-3">Журнал событий (24ч)</h2>
+    <div class="flex-1 min-h-48 max-h-64 overflow-y-auto">
+      @if (events().length === 0) {
+        <p class="text-sm text-gray-500">Событий не было.</p>
+      } @else {
+        <ul class="flex flex-col gap-1.5 text-sm">
+          @for (event of events(); track event.deviceId + event.occurredAt + event.type) {
+            <li class="flex items-center gap-2">
+              <span
+                class="h-2 w-2 flex-shrink-0 rounded-full"
+                [class.bg-gray-500]="event.type === 'OFFLINE'"
+                [class.bg-green-500]="event.type === 'ONLINE'"
+              ></span>
+              <span class="flex-1 truncate text-gray-200">{{ event.deviceName }}</span>
+              <span class="text-xs text-gray-400">{{ event.type === 'OFFLINE' ? 'пропало' : 'вернулось' }}</span>
+              <span class="text-xs text-gray-500">{{ event.occurredAt | date: 'dd.MM HH:mm' }}</span>
+            </li>
+          }
+        </ul>
       }
     </div>
   </div>

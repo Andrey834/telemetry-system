@@ -15,6 +15,7 @@ import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DeviceService } from '../services/device.service';
 import { AuthService } from '../services/auth.service';
+import { DeviceEvent } from '../models/device-event';
 import { DeviceView, DeviceStatus } from '../models/device-view';
 import { FleetActivityPoint } from '../models/fleet-activity-point';
 import { RoutePoint } from '../models/route-point';
@@ -60,6 +61,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   protected readonly compareIds = signal<Set<string>>(new Set());
   protected readonly compareSeries = signal<Map<string, RoutePoint[]>>(new Map());
   protected readonly activityPoints = signal<FleetActivityPoint[]>([]);
+  protected readonly events = signal<DeviceEvent[]>([]);
   protected readonly heatmapEnabled = signal(false);
 
   protected readonly sortBy = signal<SortBy>('name');
@@ -166,6 +168,10 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
       this.deviceService.getActivity().subscribe({
         next: (points) => this.activityPoints.set(points),
         error: () => this.activityPoints.set([]),
+      });
+      this.deviceService.getEvents().subscribe({
+        next: (events) => this.events.set(events),
+        error: () => this.events.set([]),
       });
     }
   }

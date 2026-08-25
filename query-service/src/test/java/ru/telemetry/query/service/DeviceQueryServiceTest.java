@@ -15,6 +15,7 @@ import reactor.test.StepVerifier;
 import ru.telemetry.query.model.Device;
 import ru.telemetry.query.model.DeviceStatus;
 import ru.telemetry.query.model.FleetActivityPoint;
+import ru.telemetry.query.model.GapRow;
 import ru.telemetry.query.model.HistoryRow;
 import ru.telemetry.query.model.TelemetryState;
 import ru.telemetry.query.repository.DeviceRepository;
@@ -192,5 +193,46 @@ class DeviceQueryServiceTest {
         StepVerifier.create(service.findActivity(60))
                 .expectNext(point)
                 .verifyComplete();
+    }
+
+    @Test
+    void findEvents_gapAboveThreshold_emitsOnlineThenOfflinePaired() {
+        Device device = new Device("bus-1", "Автобус 1", "buses");
+        Instant previous = Instant.parse("2026-01-01T10:00:00Z");
+        Instant current = previous.plus(Duration.ofMinutes(10));
+        given(deviceRepository.findAll()).willReturn(Flux.just(device));
+        given(historyRepository.findGaps(24)).willReturn(Flux.just(new GapRow("bus-1", current, previous, 600.0)));
+
+        StepVerifier.create(service.findEvents(24, 50))
+                .assertNext(event -> {
+                    assertThat(event.type()).isEqualTo("ONLINE");
+                    assertThat(event.occurredAt()).isEqualTo(current);
+                    assertThat(event.deviceName()).isEqualTo("Автобус 1");
+                })
+                .assertNext(event -> {
+                    assertThat(event.type()).isEqualTo("OFFLINE");
+                    assertThat(event.occurredAt()).isEqualTo(previous);
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void findEvents_gapBelowThreshold_noEvents() {
+        Device device = new Device("bus-1", "Автобус 1", "buses");
+        Instant previous = Instant.parse("2026-01-01T10:00:00Z");
+        Instant current = previous.plusSeconds(10);
+        given(deviceRepository.findAll()).willReturn(Flux.just(device));
+        given(historyRepository.findGaps(24)).willReturn(Flux.just(new GapRow("bus-1", current, previous, 10.0)));
+
+        StepVerifier.create(service.findEvents(24, 50)).verifyComplete();
+    }
+
+    @Test
+    void findEvents_nullGapForFirstPoint_ignoredWithoutError() {
+        Device device = new Device("bus-1", "Автобус 1", "buses");
+        given(deviceRepository.findAll()).willReturn(Flux.just(device));
+        given(historyRepository.findGaps(24)).willReturn(Flux.just(new GapRow("bus-1", Instant.now(), null, null)));
+
+        StepVerifier.create(service.findEvents(24, 50)).verifyComplete();
     }
 }
