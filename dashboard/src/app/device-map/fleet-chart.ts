@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, input } from '@angular/core';
-import { ChartConfiguration, ChartData } from 'chart.js';
+import { Chart, ChartConfiguration, ChartData, Plugin, ScriptableContext } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
 import { DeviceEvent } from '../models/device-event';
 import { DeviceView } from '../models/device-view';
@@ -40,6 +40,12 @@ function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
+/** Полупрозрачная версия токен-цвета для заливки баров/зон — сам токен уже может быть rgb()
+ * с своей альфой (тема), поэтому не трогаем её напрямую, просто накладываем color-mix. */
+function fade(color: string, percent: number): string {
+  return `color-mix(in oklab, ${color} ${percent}%, transparent)`;
+}
+
 @Component({
   imports: [BaseChartDirective, DatePipe],
   selector: 'app-fleet-chart',
@@ -61,7 +67,9 @@ export class FleetChart {
   protected readonly chartTheme = computed(() => {
     this.theme.theme();
     return {
+      fg: cssVar('--fg'),
       text: cssVar('--fg-muted'),
+      faint: cssVar('--fg-faint'),
       grid: cssVar('--line'),
       accent: cssVar('--accent'),
       ok: cssVar('--ok'),
@@ -86,47 +94,103 @@ export class FleetChart {
   // выглядит как моргание графика, а не полезная информация, поэтому везде выключена.
   protected readonly statusChartOptions = computed<ChartConfiguration<'doughnut'>['options']>(() => ({
     animation: false,
-    plugins: { legend: { position: 'bottom', labels: { color: this.chartTheme().text } } },
+    cutout: '68%',
+    plugins: { legend: { display: false } },
   }));
+
+  /** Число устройств в кольце доната — доступного встроенного способа у Chart.js нет,
+   * рисуется поверх canvas отдельным плагином. */
+  protected readonly statusChartPlugins = computed<Plugin<'doughnut'>[]>(() => {
+    const total = this.devices().length;
+    const fg = this.chartTheme().fg;
+    const faint = this.chartTheme().faint;
+    return [
+      {
+        id: 'centerCount',
+        afterDraw: (chart: Chart) => {
+          const { ctx, chartArea } = chart;
+          if (!chartArea) {
+            return;
+          }
+          const cx = (chartArea.left + chartArea.right) / 2;
+          const cy = (chartArea.top + chartArea.bottom) / 2;
+          ctx.save();
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = '600 20px Inter, system-ui, sans-serif';
+          ctx.fillStyle = fg;
+          ctx.fillText(String(total), cx, cy - 7);
+          ctx.font = '400 10px Inter, system-ui, sans-serif';
+          ctx.fillStyle = faint;
+          ctx.fillText('всего', cx, cy + 11);
+          ctx.restore();
+        },
+      },
+    ];
+  });
 
   protected readonly speedChartOptions = computed<ChartConfiguration<'line'>['options']>(() => ({
     animation: false,
+    interaction: { mode: 'index', intersect: false },
     scales: {
-      x: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid } },
+      x: { grid: { display: false }, border: { color: this.chartTheme().grid }, ticks: { color: this.chartTheme().faint, maxRotation: 0 } },
       y: {
-        ticks: { color: this.chartTheme().text },
         grid: { color: this.chartTheme().grid },
-        title: { display: true, text: 'км/ч', color: this.chartTheme().text },
+        border: { display: false },
+        ticks: { color: this.chartTheme().faint },
+        title: { display: true, text: 'км/ч', color: this.chartTheme().faint },
       },
     },
-    plugins: { legend: { display: true, labels: { color: this.chartTheme().text } } },
+    plugins: {
+      legend: { display: true, position: 'bottom', labels: { color: this.chartTheme().text, boxWidth: 14, boxHeight: 2 } },
+      tooltip: {
+        backgroundColor: cssVar('--surface-2'),
+        titleColor: this.chartTheme().fg,
+        bodyColor: this.chartTheme().text,
+        borderColor: cssVar('--line-strong'),
+        borderWidth: 1,
+        padding: 8,
+      },
+    },
   }));
 
   protected readonly barChartOptions = computed<ChartConfiguration<'bar'>['options']>(() => ({
     animation: false,
+    indexAxis: 'y',
     scales: {
-      x: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid }, stacked: true },
-      y: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid }, stacked: true },
+      x: { grid: { color: this.chartTheme().grid }, border: { display: false }, ticks: { color: this.chartTheme().faint }, stacked: true },
+      y: { grid: { display: false }, border: { color: this.chartTheme().grid }, ticks: { color: this.chartTheme().text }, stacked: true },
     },
-    plugins: { legend: { position: 'bottom', labels: { color: this.chartTheme().text } } },
+    plugins: { legend: { position: 'bottom', labels: { color: this.chartTheme().text, boxWidth: 10, boxHeight: 10 } } },
   }));
 
   protected readonly histogramOptions = computed<ChartConfiguration<'bar'>['options']>(() => ({
     animation: false,
     scales: {
-      x: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid } },
-      y: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid } },
+      x: { grid: { display: false }, border: { color: this.chartTheme().grid }, ticks: { color: this.chartTheme().faint } },
+      y: { grid: { color: this.chartTheme().grid }, border: { display: false }, ticks: { color: this.chartTheme().faint } },
     },
     plugins: { legend: { display: false } },
   }));
 
   protected readonly activityChartOptions = computed<ChartConfiguration<'line'>['options']>(() => ({
     animation: false,
+    interaction: { mode: 'index', intersect: false },
     scales: {
-      x: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid } },
-      y: { ticks: { color: this.chartTheme().text }, grid: { color: this.chartTheme().grid } },
+      x: { grid: { display: false }, border: { color: this.chartTheme().grid }, ticks: { color: this.chartTheme().faint, maxRotation: 0 } },
+      y: { grid: { color: this.chartTheme().grid }, border: { display: false }, ticks: { color: this.chartTheme().faint } },
     },
-    plugins: { legend: { display: false } },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: cssVar('--surface-2'),
+        titleColor: this.chartTheme().fg,
+        bodyColor: this.chartTheme().text,
+        borderColor: cssVar('--line-strong'),
+        borderWidth: 1,
+        padding: 8,
+      },
+    },
   }));
 
   protected readonly statusChartData = computed<ChartData<'doughnut'>>(() => {
@@ -138,8 +202,25 @@ export class FleetChart {
     const colors = this.statusColors() as Record<string, string>;
     return {
       labels: statuses.map((status) => STATUS_LABELS[status]),
-      datasets: [{ data: statuses.map((status) => counts[status]), backgroundColor: statuses.map((status) => colors[status]) }],
+      datasets: [{
+        data: statuses.map((status) => counts[status]),
+        backgroundColor: statuses.map((status) => colors[status]),
+        borderWidth: 0,
+      }],
     };
+  });
+
+  /** Легенда доната рисуется своей вёрсткой в шаблоне (не встроенной Chart.js) — так проще
+   * показать жирные числа рядом с подписью, как в макете. */
+  protected readonly statusLegend = computed(() => {
+    const counts: Record<string, number> = { ONLINE: 0, STALE: 0, OFFLINE: 0 };
+    for (const device of this.devices()) {
+      counts[device.status] = (counts[device.status] ?? 0) + 1;
+    }
+    const colors = this.statusColors() as Record<string, string>;
+    return (['ONLINE', 'STALE', 'OFFLINE'] as const)
+      .filter((status) => counts[status] > 0)
+      .map((status) => ({ label: STATUS_LABELS[status], count: counts[status], color: colors[status] }));
   });
 
   protected readonly speedChartData = computed<ChartData<'line'>>(() => {
@@ -153,8 +234,11 @@ export class FleetChart {
         label: this.selectedDeviceName() ?? 'Выбранное устройство',
         borderColor: colors[0],
         backgroundColor: colors[0],
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        borderWidth: 2.5,
         fill: false,
-        tension: 0.3,
+        tension: 0.35,
       });
     }
 
@@ -164,8 +248,13 @@ export class FleetChart {
         data: points.map((point) => point.speedKmh ?? 0),
         label: labelOf(deviceId),
         borderColor: colors[colorIndex % colors.length],
+        backgroundColor: colors[colorIndex % colors.length],
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        borderWidth: 2,
+        borderDash: [4, 3],
         fill: false,
-        tension: 0.3,
+        tension: 0.35,
       });
       colorIndex++;
     }
@@ -237,9 +326,19 @@ export class FleetChart {
         counts[index]++;
       }
     }
+    const accent = this.chartTheme().accent;
     return {
       labels: SPEED_BUCKETS.map(([label]) => label + ' км/ч'),
-      datasets: [{ data: counts, label: 'Устройств', backgroundColor: this.chartTheme().accent }],
+      datasets: [{
+        data: counts,
+        label: 'Устройств',
+        backgroundColor: fade(accent, 35),
+        borderColor: accent,
+        borderWidth: 2,
+        borderRadius: 4,
+        borderSkipped: false,
+        maxBarThickness: 40,
+      }],
     };
   });
 
@@ -255,27 +354,48 @@ export class FleetChart {
     const colors = this.statusColors() as Record<string, string>;
     return {
       labels: groupNames,
-      datasets: statuses.map((status) => ({
+      datasets: statuses.map((status, i) => ({
         data: groupNames.map((name) => groups.get(name)![status]),
         label: STATUS_LABELS[status],
         backgroundColor: colors[status],
+        borderRadius: 3,
+        borderSkipped: false,
+        barThickness: 14,
+        // borderSkipped:false + borderRadius на каждом сегменте стека рисует скруглённые углы
+        // с обеих сторон сегмента, а не только на крайнем — приемлемо для тонких статус-полосок.
+        order: i,
       })),
     };
   });
 
-  protected readonly activityChartData = computed<ChartData<'line'>>(() => ({
-    labels: this.activityPoints().map((p) => new Date(p.bucket).toLocaleTimeString()),
-    datasets: [
-      {
-        data: this.activityPoints().map((p) => p.count),
-        label: 'Сообщений/мин',
-        borderColor: this.chartTheme().accent,
-        backgroundColor: `color-mix(in oklab, ${this.chartTheme().accent} 18%, transparent)`,
-        fill: true,
-        tension: 0.2,
-      },
-    ],
-  }));
+  protected readonly activityChartData = computed<ChartData<'line'>>(() => {
+    const accent = this.chartTheme().accent;
+    return {
+      labels: this.activityPoints().map((p) => new Date(p.bucket).toLocaleTimeString()),
+      datasets: [
+        {
+          data: this.activityPoints().map((p) => p.count),
+          label: 'Сообщений/мин',
+          borderColor: accent,
+          borderWidth: 2.5,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          backgroundColor: (context: ScriptableContext<'line'>) => {
+            const { ctx, chartArea } = context.chart;
+            if (!chartArea) {
+              return fade(accent, 15);
+            }
+            const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+            gradient.addColorStop(0, fade(accent, 32));
+            gradient.addColorStop(1, fade(accent, 0));
+            return gradient;
+          },
+          fill: true,
+          tension: 0.35,
+        },
+      ],
+    };
+  });
 
   protected exportCsv(): void {
     const points = this.routePoints();
