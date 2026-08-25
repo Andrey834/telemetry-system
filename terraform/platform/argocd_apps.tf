@@ -69,8 +69,11 @@ locals {
         redisHost          = local.redis_host
         corsAllowedOrigins = "https://${local.dashboard_host}"
         dbReplicaHost      = local.postgres_replica
-        dbPort             = "6432"
-        dbSslMode          = "require"
+        # Primary — только для регистрации устройства (PrimaryDb/DeviceAdminService), единственная
+        # write-операция в сервисе; остальное читает с dbReplicaHost выше.
+        dbHost    = local.postgres_host
+        dbPort    = "6432"
+        dbSslMode = "require"
       }
       credentialsSecretName = "query-service-credentials"
       # Пока enable_cert_manager=false (первый этап — только инфра/платформа, домен ещё не

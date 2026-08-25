@@ -20,7 +20,7 @@ public class CorsConfig {
             @Value("${app.cors.allowed-origins:http://localhost:4200}") List<String> allowedOrigins) {
         CorsConfiguration devicesConfig = new CorsConfiguration();
         devicesConfig.setAllowedOrigins(allowedOrigins);
-        devicesConfig.setAllowedMethods(List.of("GET"));
+        devicesConfig.setAllowedMethods(List.of("GET", "POST"));
         devicesConfig.setAllowedHeaders(List.of("*"));
 
         CorsConfiguration authConfig = new CorsConfiguration();

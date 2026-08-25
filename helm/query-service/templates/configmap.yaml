@@ -10,6 +10,7 @@ data:
   QUERY_PORT: {{ .Values.env.queryPort | quote }}
   CORS_ALLOWED_ORIGINS: {{ .Values.env.corsAllowedOrigins | quote }}
   DB_REPLICA_HOST: {{ .Values.env.dbReplicaHost | quote }}
+  DB_HOST: {{ .Values.env.dbHost | quote }}
   DB_PORT: {{ .Values.env.dbPort | quote }}
   DB_NAME: {{ .Values.env.dbName | quote }}
   DB_USER: {{ .Values.env.dbUser | quote }}

@@ -35,7 +35,28 @@
     >
       Графики
     </button>
+    @if (auth.role() === 'ADMIN') {
+      <button
+        type="button"
+        class="px-3 py-1"
+        [class.bg-blue-600]="activeTab() === 'devices'"
+        (click)="setActiveTab('devices')"
+      >
+        Устройства
+      </button>
+    }
   </div>
+
+  @if (activeTab() === 'map') {
+    <button
+      type="button"
+      class="hidden sm:inline rounded border border-gray-700 px-3 py-1 hover:bg-gray-700"
+      [class.bg-blue-600]="heatmapEnabled()"
+      (click)="toggleHeatmap()"
+    >
+      Heatmap
+    </button>
+  }
 
   <span class="hidden md:inline text-gray-400">{{ auth.username() }}</span>
   <button type="button" class="rounded border border-gray-700 px-3 py-1 hover:bg-gray-700" (click)="logout()">
@@ -96,6 +117,13 @@
               {{ device.speedKmh != null ? device.speedKmh.toFixed(1) + ' км/ч' : '—' }}
             </span>
           </span>
+          <input
+            type="checkbox"
+            class="h-3.5 w-3.5 flex-shrink-0"
+            title="Сравнить на графике скорости"
+            [checked]="compareIds().has(device.deviceId)"
+            (click)="toggleCompare(device.deviceId, $event)"
+          />
         </button>
       }
     }
@@ -107,9 +135,17 @@
       <app-fleet-chart
         class="absolute inset-0"
         [devices]="devices()"
+        [selectedDeviceId]="selectedDeviceId()"
         [selectedDeviceName]="selectedDevice()?.name ?? null"
         [routePoints]="routePoints()"
+        [compareSeries]="compareSeries()"
+        [activityPoints]="activityPoints()"
       />
+    }
+    @if (activeTab() === 'devices') {
+      <app-device-admin class="absolute inset-0" [devices]="devices()" />
     }
   </div>
 </div>
+
+<app-toast />

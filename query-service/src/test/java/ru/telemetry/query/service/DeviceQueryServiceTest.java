@@ -14,6 +14,7 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import ru.telemetry.query.model.Device;
 import ru.telemetry.query.model.DeviceStatus;
+import ru.telemetry.query.model.FleetActivityPoint;
 import ru.telemetry.query.model.HistoryRow;
 import ru.telemetry.query.model.TelemetryState;
 import ru.telemetry.query.repository.DeviceRepository;
@@ -180,6 +181,16 @@ class DeviceQueryServiceTest {
         StepVerifier.create(service.findHistory("bus-1", 10))
                 .assertNext(point -> assertThat(point.recordedAt()).isEqualTo(older))
                 .assertNext(point -> assertThat(point.recordedAt()).isEqualTo(newer))
+                .verifyComplete();
+    }
+
+    @Test
+    void findActivity_delegatesToRepositoryWithGivenWindow() {
+        FleetActivityPoint point = new FleetActivityPoint(Instant.now(), 42L);
+        given(historyRepository.countByTimeBucket(60)).willReturn(Flux.just(point));
+
+        StepVerifier.create(service.findActivity(60))
+                .expectNext(point)
                 .verifyComplete();
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.telemetry.query.model.DeviceView;
+import ru.telemetry.query.model.FleetActivityPoint;
 import ru.telemetry.query.model.RoutePoint;
 import ru.telemetry.query.model.TelemetryState;
 import ru.telemetry.query.service.DeviceQueryService;
@@ -42,5 +43,11 @@ public class DeviceController {
     public Flux<RoutePoint> getHistory(@PathVariable String deviceId,
                                         @RequestParam(defaultValue = "200") int limit) {
         return queryService.findHistory(deviceId, limit);
+    }
+
+    /** Активность всего парка (сообщений/минуту) — график "активность парка во времени". */
+    @GetMapping("/activity")
+    public Flux<FleetActivityPoint> getActivity(@RequestParam(defaultValue = "60") int minutes) {
+        return queryService.findActivity(minutes);
     }
 }

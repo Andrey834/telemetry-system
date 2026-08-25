@@ -9,19 +9,23 @@ import {
   signal,
 } from '@angular/core';
 import * as L from 'leaflet';
+import 'leaflet.heat';
 import { Router } from '@angular/router';
 import { Subscription, interval, startWith, switchMap } from 'rxjs';
 import { DeviceService } from '../services/device.service';
 import { AuthService } from '../services/auth.service';
 import { DeviceView, DeviceStatus } from '../models/device-view';
+import { FleetActivityPoint } from '../models/fleet-activity-point';
 import { RoutePoint } from '../models/route-point';
 import { FleetChart } from './fleet-chart';
+import { DeviceAdmin } from './device-admin';
+import { Toast } from '../shared/toast';
 
 const POLL_INTERVAL_MS = 5000;
 const DEFAULT_CENTER: L.LatLngExpression = [55.751244, 37.618423]; // Москва — стартовый вид карты
 
 type SortBy = 'name' | 'speed' | 'status';
-type Tab = 'map' | 'charts';
+type Tab = 'map' | 'charts' | 'devices';
 
 // Порядок статусов в сортировке "по статусу" — сначала те, на кого стоит смотреть внимательнее.
 const STATUS_ORDER: Record<DeviceStatus, number> = { OFFLINE: 0, STALE: 1, ONLINE: 2 };
@@ -36,13 +40,14 @@ L.Icon.Default.mergeOptions({
 });
 
 @Component({
-  imports: [FleetChart],
+  imports: [FleetChart, DeviceAdmin, Toast],
   host: { class: 'flex flex-col h-full' },
   selector: 'app-device-map',
   templateUrl: './device-map.html',
 })
 export class DeviceMap implements AfterViewInit, OnDestroy {
   @ViewChild('mapContainer', { static: true }) private mapContainer!: ElementRef<HTMLDivElement>;
+  @ViewChild(Toast) private toast!: Toast;
 
   protected readonly deviceCount = signal(0);
   protected readonly lastUpdated = signal<Date | null>(null);
@@ -50,6 +55,11 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   protected readonly devices = signal<DeviceView[]>([]);
   protected readonly selectedDeviceId = signal<string | null>(null);
   protected readonly routePoints = signal<RoutePoint[]>([]);
+
+  protected readonly compareIds = signal<Set<string>>(new Set());
+  protected readonly compareSeries = signal<Map<string, RoutePoint[]>>(new Map());
+  protected readonly activityPoints = signal<FleetActivityPoint[]>([]);
+  protected readonly heatmapEnabled = signal(false);
 
   protected readonly sortBy = signal<SortBy>('name');
   protected readonly activeTab = signal<Tab>('map');
@@ -84,7 +94,13 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   // так у маркера не "мигает" state между тиками опроса.
   private readonly markers = new Map<string, L.Marker>();
   private routeLine?: L.Polyline;
+  private heatLayer?: L.HeatLayer;
   private pollSubscription?: Subscription;
+
+  // Для toast "устройство пропало" — статус с прошлого тика поллинга, чтобы поймать именно
+  // переход в OFFLINE, а не отрендерить toast на каждый poll, пока оно там остаётся.
+  private readonly previousStatuses = new Map<string, DeviceStatus>();
+  private hasRenderedOnce = false;
 
   ngAfterViewInit(): void {
     this.map = L.map(this.mapContainer.nativeElement).setView(DEFAULT_CENTER, 11);
@@ -117,6 +133,12 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
 
   protected setActiveTab(tab: Tab): void {
     this.activeTab.set(tab);
+    if (tab === 'charts') {
+      this.deviceService.getActivity().subscribe({
+        next: (points) => this.activityPoints.set(points),
+        error: () => this.activityPoints.set([]),
+      });
+    }
   }
 
   protected toggleMobileSidebar(): void {
@@ -140,6 +162,56 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
       },
       error: () => this.routePoints.set([]),
     });
+  }
+
+  /** Отдельный от selectDevice чекбокс "сравнить" — не двигает карту, только добавляет линию
+   * скорости этого устройства на общий график в charts. */
+  protected toggleCompare(deviceId: string, event: Event): void {
+    event.stopPropagation();
+    const next = new Set(this.compareIds());
+    if (next.has(deviceId)) {
+      next.delete(deviceId);
+      this.compareIds.set(next);
+      const series = new Map(this.compareSeries());
+      series.delete(deviceId);
+      this.compareSeries.set(series);
+      return;
+    }
+
+    next.add(deviceId);
+    this.compareIds.set(next);
+    this.deviceService.getHistory(deviceId).subscribe({
+      next: (points) => {
+        const series = new Map(this.compareSeries());
+        series.set(deviceId, points);
+        this.compareSeries.set(series);
+      },
+    });
+  }
+
+  protected toggleHeatmap(): void {
+    this.heatmapEnabled.update((v) => !v);
+    if (!this.heatmapEnabled()) {
+      this.heatLayer?.remove();
+      this.heatLayer = undefined;
+    } else {
+      this.renderHeatmap();
+    }
+  }
+
+  private renderHeatmap(): void {
+    if (!this.map || !this.heatmapEnabled()) {
+      return;
+    }
+    const points: L.HeatLatLngTuple[] = this.devices()
+      .filter((d) => d.lat != null && d.lon != null)
+      .map((d) => [d.lat!, d.lon!, 1]);
+
+    if (this.heatLayer) {
+      this.heatLayer.setLatLngs(points);
+    } else {
+      this.heatLayer = L.heatLayer(points, { radius: 30, blur: 20 }).addTo(this.map);
+    }
   }
 
   private drawRoute(points: RoutePoint[]): void {
@@ -168,6 +240,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
   private render(allDevices: DeviceView[]): void {
     this.error.set(null);
     this.lastUpdated.set(new Date());
+    this.checkForNewlyOffline(allDevices);
     this.devices.set(allDevices);
 
     // Устройства без текущих координат (ни разу не отчитались, либо запись протухла в Redis)
@@ -200,6 +273,23 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
         }
       }
     }
+
+    this.renderHeatmap();
+  }
+
+  private checkForNewlyOffline(allDevices: DeviceView[]): void {
+    if (this.hasRenderedOnce) {
+      for (const device of allDevices) {
+        const prev = this.previousStatuses.get(device.deviceId);
+        if ((prev === 'ONLINE' || prev === 'STALE') && device.status === 'OFFLINE') {
+          this.toast?.show(`${device.name} пропало — давно не шлёт данные`);
+        }
+      }
+    }
+    for (const device of allDevices) {
+      this.previousStatuses.set(device.deviceId, device.status);
+    }
+    this.hasRenderedOnce = true;
   }
 
   private popupHtml(device: DeviceView): string {

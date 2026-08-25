@@ -8,6 +8,7 @@ import reactor.core.publisher.Mono;
 import ru.telemetry.query.model.Device;
 import ru.telemetry.query.model.DeviceStatus;
 import ru.telemetry.query.model.DeviceView;
+import ru.telemetry.query.model.FleetActivityPoint;
 import ru.telemetry.query.model.RoutePoint;
 import ru.telemetry.query.model.TelemetryState;
 import ru.telemetry.query.repository.DeviceRepository;
@@ -118,5 +119,10 @@ public class DeviceQueryService {
                         row.recordedAt()))
                 .collectSortedList((a, b) -> a.recordedAt().compareTo(b.recordedAt()))
                 .flatMapMany(Flux::fromIterable);
+    }
+
+    /** Активность всего парка (сообщений/минуту) за последние minutes — для графика на dashboard. */
+    public Flux<FleetActivityPoint> findActivity(int minutes) {
+        return historyRepository.countByTimeBucket(minutes);
     }
 }
