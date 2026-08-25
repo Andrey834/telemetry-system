@@ -3,5 +3,8 @@ terraform {
     yandex = {
       source = "yandex-cloud/yandex"
     }
+    null = {
+      source = "hashicorp/null"
+    }
   }
 }
