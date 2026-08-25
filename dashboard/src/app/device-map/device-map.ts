@@ -9,7 +9,6 @@ import {
   signal,
 } from '@angular/core';
 import * as L from 'leaflet';
-import './leaflet-global';
 import 'leaflet.heat';
 import 'leaflet.markercluster';
 import { Router } from '@angular/router';
@@ -34,6 +33,10 @@ type Tab = 'map' | 'charts' | 'devices';
 
 // Порядок статусов в сортировке "по статусу" — сначала те, на кого стоит смотреть внимательнее.
 const STATUS_ORDER: Record<DeviceStatus, number> = { OFFLINE: 0, STALE: 1, ONLINE: 2 };
+
+function leafletWithPlugins(): typeof L {
+  return (window as unknown as { L: typeof L }).L;
+}
 
 // Классическая проблема Leaflet + бандлеры: относительные url() в CSS не резолвятся так,
 // как ожидает Leaflet, из-за чего маркеры остаются без иконки. Иконки скопированы в
@@ -148,7 +151,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
 
     // Кластеризация — на большом парке (200+ устройств, как в нагрузочном тесте) отдельные маркеры
     // превращаются в кашу из точек, кластер-группа схлопывает их до раскрытия при зуме.
-    this.markerClusterGroup = L.markerClusterGroup();
+    this.markerClusterGroup = leafletWithPlugins().markerClusterGroup();
     this.markerClusterGroup.addTo(this.map);
 
     // Push вместо поллинга каждые 5с — один долгоживущий SSE-поток, deviceService сам
@@ -268,7 +271,7 @@ export class DeviceMap implements AfterViewInit, OnDestroy {
     if (this.heatLayer) {
       this.heatLayer.setLatLngs(points);
     } else {
-      this.heatLayer = L.heatLayer(points, { radius: 30, blur: 20 }).addTo(this.map);
+      this.heatLayer = leafletWithPlugins().heatLayer(points, { radius: 30, blur: 20 }).addTo(this.map);
     }
   }
 
