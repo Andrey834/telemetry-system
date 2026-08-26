@@ -174,6 +174,10 @@ k6 run load-test/telemetry-load.js
 
 ## Продакшн-инфраструктура (Yandex Cloud)
 
+Ориентировочная стоимость облачной инфраструктуры с текущими настройками (3 воркер-ноды
+Managed Kubernetes, Managed PostgreSQL на 2 хоста, Managed Redis, Managed Kafka, Container
+Registry, статический IP) — **~34 000 ₽/мес**.
+
 Terraform в `terraform/` поднимает всё, что нужно для реального прод-окружения — но **двумя
 отдельными конфигами с раздельным state**, а не одним `apply`:
 
